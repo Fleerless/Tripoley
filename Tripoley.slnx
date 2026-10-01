@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Tripoley.Engine.Tests/Tripoley.Engine.Tests.csproj" />
+  <Project Path="Tripoley.Engine/Tripoley.Engine.csproj" />
+</Solution>

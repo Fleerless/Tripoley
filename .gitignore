@@ -1,0 +1,9 @@
+bin/
+obj/
+
+.claude/settings.local.json
+.vscode/
+.DS_Store
+
+AGENTS.md
+CLAUDE.md
