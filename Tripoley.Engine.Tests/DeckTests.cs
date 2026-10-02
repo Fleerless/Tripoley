@@ -1,6 +1,6 @@
 ﻿namespace Tripoley.Engine.Tests;
 
-public class UnitTest1
+public class DeckTests
 {
     [Fact]
     public void NewDeck_Has52Cards()
