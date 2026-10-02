@@ -13,4 +13,8 @@ public class Hand
     {
         return _cards.Contains(card);
     }
+    public bool HasCardOfSuit(Suit suit)
+    {
+        return _cards.Any(card => card.Suit == suit);
+    }
 }
