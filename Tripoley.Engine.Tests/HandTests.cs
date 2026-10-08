@@ -40,4 +40,20 @@ public class HandTests
 
         Assert.False(hand.Contains(otherCard));
     }
+    [Fact]
+    public void HasCardOfSuit_ReturnsTrueWhenHandContainsSuit()
+    {
+        Hand hand = new Hand();
+        hand.AddCard(new Card(Suit.Hearts, Rank.Five));
+
+        Assert.True(hand.HasCardOfSuit(Suit.Hearts));
+    }
+    [Fact]
+    public void HasCardOfSuit_ReturnsFalseWhenHandDoesNotContainSuit()
+    {
+        Hand hand = new Hand();
+        hand.AddCard(new Card(Suit.Hearts, Rank.Five));
+
+        Assert.False(hand.HasCardOfSuit(Suit.Spades));
+    }
 }

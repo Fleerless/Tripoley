@@ -30,6 +30,40 @@ public class DealTests
         Assert.Equal(17, deal.PlayerHands[1].CardsRemaining);
         Assert.Equal(17, deal.Widow.CardsRemaining);
     }
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void Deal_ValidPlayerCounts_DistributeAllCardsAcrossPlayersAndWidowEvenly(int playerCount)
+    {
+        Deck deck = new Deck();
+        Deal deal = new Deal(deck, playerCount);
+        int totalCards = deal.Widow.CardsRemaining;
+        int smallestHandSize = deal.Widow.CardsRemaining;
+        int largestHandSize = deal.Widow.CardsRemaining;
+
+        foreach (Hand hand in deal.PlayerHands)
+        {
+            int handSize = hand.CardsRemaining;
+            totalCards += handSize;
+
+            if (handSize < smallestHandSize)
+            {
+                smallestHandSize = handSize;
+            }
+
+            if (handSize > largestHandSize)
+            {
+                largestHandSize = handSize;
+            }
+        }
+
+        Assert.Equal(playerCount, deal.PlayerHands.Count);
+        Assert.Equal(52, totalCards);
+        Assert.InRange(largestHandSize - smallestHandSize, 0, 1);
+    }
     [Fact]
     public void Deal_PlayerCountBelowTwo_ThrowsArgumentOutOfRangeException()
     {
