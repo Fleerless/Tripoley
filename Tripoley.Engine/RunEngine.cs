@@ -47,9 +47,9 @@ public class RunEngine
         return suit == Suit.Hearts || suit == Suit.Diamonds;
     }
     private static bool RequiresRedLead(Suit previousSuit)
-{
-    return !IsSuitRed(previousSuit);
-}
+    {
+        return !IsSuitRed(previousSuit);
+    }
     public static bool CanLeadAfterStop(Hand hand, Suit previousSuit)
     {        
         if (RequiresRedLead(previousSuit))
@@ -61,11 +61,15 @@ public class RunEngine
             return hand.HasCardOfSuit(Suit.Clubs) || hand.HasCardOfSuit(Suit.Spades);
         }
     }
-    public static bool IsValidLeadAfterStop(Hand hand, Card card, Suit previousSuit)
+    public static bool IsValidLeadAfterStop(Hand hand, Card playedCard, Suit previousSuit)
     {
         if (RequiresRedLead(previousSuit))
         {
-            
+            return hand.Contains(playedCard) && IsSuitRed(playedCard.Suit);
+        }
+        else
+        {
+            return hand.Contains(playedCard) && !IsSuitRed(playedCard.Suit);
         }
     }
 }
