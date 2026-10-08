@@ -16,11 +16,11 @@ public class RunEngine
         {
             return true;
         }
-        
-        var nextCard = new Card(lastPlayedCard.Suit, GetNextRank(lastPlayedCard.Rank));
 
-        return activeHands.All(hand => !hand.Contains(nextCard))
-            && widowHand.Contains(nextCard);
+        var nextCard = new Card(lastPlayedCard.Suit, GetNextRank(lastPlayedCard.Rank));
+        var nextCardInActiveHands = activeHands.Any(hand => hand.Contains(nextCard));
+
+        return !nextCardInActiveHands || widowHand.Contains(nextCard);
     }
     private static Rank GetNextRank(Rank currentRank)
     {
