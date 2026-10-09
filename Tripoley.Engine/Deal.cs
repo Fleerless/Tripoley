@@ -15,9 +15,9 @@ public class Deal
             throw new InvalidOperationException("Cannot deal with an empty deck.");
         }
 
-        if (playerCount < 2 || playerCount > 6)
+        if (playerCount < 2 || playerCount > 9)
         {
-            throw new ArgumentOutOfRangeException(nameof(playerCount), "Player count must be between 2 and 6.");
+            throw new ArgumentOutOfRangeException(nameof(playerCount), "Player count must be between 2 and 9.");
         }
 
         Widow = new Hand();

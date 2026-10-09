@@ -36,6 +36,9 @@ public class DealTests
     [InlineData(4)]
     [InlineData(5)]
     [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
     public void Deal_ValidPlayerCounts_DistributeAllCardsAcrossPlayersAndWidowEvenly(int playerCount)
     {
         Deck deck = new Deck();
@@ -72,16 +75,16 @@ public class DealTests
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Deal(deck, 1));
         
         Assert.Equal("playerCount", ex.ParamName);
-        Assert.Contains("Player count must be between 2 and 6", ex.Message);
+        Assert.Contains("Player count must be between 2 and 9", ex.Message);
     }
     [Fact]
-    public void Deal_PlayerCountAboveSix_ThrowsArgumentOutOfRangeException()
+    public void Deal_PlayerCountAboveNine_ThrowsArgumentOutOfRangeException()
     {
         Deck deck = new Deck();
 
-        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Deal(deck, 7));
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Deal(deck, 10));
 
         Assert.Equal("playerCount", ex.ParamName);
-        Assert.Contains("Player count must be between 2 and 6", ex.Message);
+        Assert.Contains("Player count must be between 2 and 9", ex.Message);
     }
 }
