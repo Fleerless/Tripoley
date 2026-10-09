@@ -56,10 +56,8 @@ public class RunEngine
         {
             return hand.HasCardOfSuit(Suit.Hearts) || hand.HasCardOfSuit(Suit.Diamonds);
         }
-        else
-        {
-            return hand.HasCardOfSuit(Suit.Clubs) || hand.HasCardOfSuit(Suit.Spades);
-        }
+        return hand.HasCardOfSuit(Suit.Clubs) || hand.HasCardOfSuit(Suit.Spades);
+
     }
     public static bool IsValidLeadAfterStop(Hand hand, Card playedCard, Suit previousSuit)
     {
@@ -67,9 +65,31 @@ public class RunEngine
         {
             return hand.Contains(playedCard) && IsSuitRed(playedCard.Suit);
         }
-        else
-        {
-            return hand.Contains(playedCard) && !IsSuitRed(playedCard.Suit);
-        }
+        return hand.Contains(playedCard) && !IsSuitRed(playedCard.Suit);
     }
+    public static bool TryPlayNextCard(Hand hand, Card cardToPlay, Card currentCard)
+    {
+        if (!IsLegalNextCard(currentCard, cardToPlay))
+        {
+            return false;
+        }
+        return hand.TryRemoveCard(cardToPlay);
+    }
+    public static bool TryLeadRun(Hand hand, Card cardToLead)
+    {
+        if (hand.IsLowestCardOfSuit(cardToLead))
+        {
+            return hand.TryRemoveCard(cardToLead);
+        }
+        return false;
+    }
+    public static bool TryLeadAfterStop(Hand hand, Card cardToLead, Suit previousSuit)
+    {
+        if (IsValidLeadAfterStop(hand, cardToLead, previousSuit) && hand.IsLowestCardOfSuit(cardToLead))
+        {
+            return hand.TryRemoveCard(cardToLead);
+        }
+        return false;
+    }
+
 }
