@@ -1,6 +1,6 @@
 namespace Tripoley.Engine;
 
-public class RunEngine
+public static class RunEngine
 {
     public static bool IsLegalNextCard(Card currentCard, Card candidateCard)
     {
@@ -42,30 +42,11 @@ public class RunEngine
             _ => throw new ArgumentOutOfRangeException(nameof(currentRank))
         };
     }
-    private static bool IsSuitRed(Suit suit)
-    {
-        return suit == Suit.Hearts || suit == Suit.Diamonds;
-    }
-    private static bool RequiresRedLead(Suit previousSuit)
-    {
-        return !IsSuitRed(previousSuit);
-    }
     public static bool CanLeadAfterStop(Hand hand, Suit previousSuit)
-    {        
-        if (RequiresRedLead(previousSuit))
-        {
-            return hand.HasCardOfSuit(Suit.Hearts) || hand.HasCardOfSuit(Suit.Diamonds);
-        }
-        return hand.HasCardOfSuit(Suit.Clubs) || hand.HasCardOfSuit(Suit.Spades);
-
-    }
-    public static bool IsValidLeadAfterStop(Hand hand, Card playedCard, Suit previousSuit)
     {
-        if (RequiresRedLead(previousSuit))
-        {
-            return hand.Contains(playedCard) && IsSuitRed(playedCard.Suit);
-        }
-        return hand.Contains(playedCard) && !IsSuitRed(playedCard.Suit);
+        return Enum.GetValues<Suit>()
+            .Where(suit => suit != previousSuit)
+            .Any(hand.HasCardOfSuit);
     }
     public static bool TryPlayNextCard(Hand hand, Card cardToPlay, Card currentCard)
     {
@@ -85,11 +66,37 @@ public class RunEngine
     }
     public static bool TryLeadAfterStop(Hand hand, Card cardToLead, Suit previousSuit)
     {
-        if (IsValidLeadAfterStop(hand, cardToLead, previousSuit) && hand.IsLowestCardOfSuit(cardToLead))
+        bool cardNotPreviousSuit = cardToLead.Suit != previousSuit;
+        if (cardNotPreviousSuit && hand.IsLowestCardOfSuit(cardToLead))
         {
             return hand.TryRemoveCard(cardToLead);
         }
         return false;
     }
+    public static bool TryFindNextLeader(IReadOnlyList<Hand> playerHands, int playerWhoStoppedRunIndex, Suit previousSuit, out int nextLeaderIndex)
+    {
+        ArgumentNullException.ThrowIfNull(playerHands);
 
+        int playerCount = playerHands.Count;
+
+        if (playerWhoStoppedRunIndex < 0 || playerWhoStoppedRunIndex >= playerCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(playerWhoStoppedRunIndex));
+        }
+
+        nextLeaderIndex = default;
+
+        for (int offset = 0; offset < playerCount; offset++)
+        {
+            int candidateIndex = (playerWhoStoppedRunIndex + offset) % playerCount;
+
+            if (CanLeadAfterStop(playerHands[candidateIndex], previousSuit))
+            {
+                nextLeaderIndex = candidateIndex;
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
