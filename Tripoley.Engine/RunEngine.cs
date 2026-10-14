@@ -48,14 +48,6 @@ public static class RunEngine
             .Where(suit => suit != previousSuit)
             .Any(hand.HasCardOfSuit);
     }
-    public static bool TryPlayNextCard(Hand hand, Card cardToPlay, Card currentCard)
-    {
-        if (!IsLegalNextCard(currentCard, cardToPlay))
-        {
-            return false;
-        }
-        return hand.TryRemoveCard(cardToPlay);
-    }
     public static bool TryLeadRun(Hand hand, Card cardToLead)
     {
         if (hand.IsLowestCardOfSuit(cardToLead))
