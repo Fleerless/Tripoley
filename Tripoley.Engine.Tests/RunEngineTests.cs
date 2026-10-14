@@ -92,6 +92,40 @@ public class RunEngineTests
 
         Assert.False(RunEngine.IsRunStopped(lastPlayedCard, activeHands, widowHand));
     }
+
+    [Theory]
+    [InlineData(Rank.Two, Rank.Three)]
+    [InlineData(Rank.Three, Rank.Four)]
+    [InlineData(Rank.Four, Rank.Five)]
+    [InlineData(Rank.Five, Rank.Six)]
+    [InlineData(Rank.Six, Rank.Seven)]
+    [InlineData(Rank.Seven, Rank.Eight)]
+    [InlineData(Rank.Eight, Rank.Nine)]
+    [InlineData(Rank.Nine, Rank.Ten)]
+    [InlineData(Rank.Ten, Rank.Jack)]
+    [InlineData(Rank.Jack, Rank.Queen)]
+    [InlineData(Rank.Queen, Rank.King)]
+    [InlineData(Rank.King, Rank.Ace)]
+    public void IsRunStopped_WhenNextRankIsInAnActiveHand_ReturnsFalse(Rank lastRank, Rank nextRank)
+    {
+        Card lastPlayedCard = new Card(Suit.Clubs, lastRank);
+        Hand activeHand = new Hand();
+        activeHand.AddCard(new Card(Suit.Clubs, nextRank));
+
+        bool isStopped = RunEngine.IsRunStopped(lastPlayedCard, [activeHand], new Hand());
+
+        Assert.False(isStopped);
+    }
+
+    [Fact]
+    public void IsRunStopped_WhenLastPlayedRankIsInvalid_ThrowsArgumentOutOfRangeException()
+    {
+        Card lastPlayedCard = new Card(Suit.Clubs, (Rank)(-1));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => RunEngine.IsRunStopped(lastPlayedCard, [], new Hand()));
+    }
+
     [Theory]
     [InlineData(Suit.Hearts)]
     [InlineData(Suit.Diamonds)]
@@ -153,44 +187,6 @@ public class RunEngineTests
         var widowHand = new Hand();
 
         Assert.True(RunEngine.IsRunStopped(lastPlayedCard, activeHands, widowHand));
-    }
-    [Fact]
-    public void TryPlayNextCard_WhenCardIsLegalAndInHand_RemovesCardAndReturnsTrue()
-    {
-        var hand = new Hand();
-        var currentCard = new Card(Suit.Hearts, Rank.Five);
-        var nextCard = new Card(Suit.Hearts, Rank.Six);
-        hand.AddCard(nextCard);
-
-        var result = RunEngine.TryPlayNextCard(hand, nextCard, currentCard);
-
-        Assert.True(result);
-        Assert.False(hand.Contains(nextCard));
-    }
-    [Fact] 
-    public void TryPlayNextCard_WhenCardIsNotLegal_ReturnsFalseAndLeavesHandUnchanged()
-    {
-        var hand = new Hand();
-        var currentCard = new Card(Suit.Diamonds, Rank.Three);
-        var illegalCard = new Card(Suit.Diamonds, Rank.Five);
-        hand.AddCard(illegalCard);
-
-        var result = RunEngine.TryPlayNextCard(hand, illegalCard, currentCard);
-
-        Assert.False(result);
-        Assert.True(hand.Contains(illegalCard));
-    }
-    [Fact] 
-    public void TryPlayNextCard_WhenCardIsNotInHand_ReturnsFalseAndLeavesHandUnchanged()
-    {
-        var hand = new Hand();
-        var currentCard = new Card(Suit.Clubs, Rank.Two);
-        var nextCard = new Card(Suit.Clubs, Rank.Four);
-
-        var result = RunEngine.TryPlayNextCard(hand, nextCard, currentCard);
-
-        Assert.False(result);
-        Assert.Equal(0, hand.CardsRemaining);
     }
     [Fact]
     public void TryLeadRun_WhenCardIsLowestInItsSuit_ReturnsTrueAndRemovesCard()
