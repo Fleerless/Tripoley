@@ -8,9 +8,9 @@ public static class RunEngine
         {
             return false;
         }   
-        return RankExtensions.GetValue(candidateCard.Rank) == RankExtensions.GetValue(currentCard.Rank) + 1;
+        return candidateCard.Rank == currentCard.Rank + 1;
     }
-    public static bool IsRunStopped(Card lastPlayedCard, IEnumerable<Hand> activeHands, Hand widowHand)
+    public static bool IsRunStopped(Card lastPlayedCard, IEnumerable<Hand> activeHands)
     {
         if (lastPlayedCard.Rank == Rank.Ace)
         {
@@ -20,7 +20,7 @@ public static class RunEngine
         var nextCard = new Card(lastPlayedCard.Suit, GetNextRank(lastPlayedCard.Rank));
         var nextCardInActiveHands = activeHands.Any(hand => hand.Contains(nextCard));
 
-        return !nextCardInActiveHands || widowHand.Contains(nextCard);
+        return !nextCardInActiveHands;
     }
     private static Rank GetNextRank(Rank currentRank)
     {
@@ -48,24 +48,17 @@ public static class RunEngine
             .Where(suit => suit != previousSuit)
             .Any(hand.HasCardOfSuit);
     }
-    public static bool TryLeadRun(Hand hand, Card cardToLead)
+    public static bool CanLeadRun(Hand hand, Card cardToLead)
     {
-        if (hand.IsLowestCardOfSuit(cardToLead))
-        {
-            return hand.TryRemoveCard(cardToLead);
-        }
-        return false;
+        return hand.IsLowestCardOfSuit(cardToLead);
     }
-    public static bool TryLeadAfterStop(Hand hand, Card cardToLead, Suit previousSuit)
+    public static bool CanLeadWithCardAfterStop(Hand hand, Card cardToLead, Suit previousSuit)
     {
         bool cardNotPreviousSuit = cardToLead.Suit != previousSuit;
-        if (cardNotPreviousSuit && hand.IsLowestCardOfSuit(cardToLead))
-        {
-            return hand.TryRemoveCard(cardToLead);
-        }
-        return false;
+
+        return cardNotPreviousSuit && hand.IsLowestCardOfSuit(cardToLead);
     }
-    public static bool TryFindNextLeader(IReadOnlyList<Hand> playerHands, int playerWhoStoppedRunIndex, Suit previousSuit, out int nextLeaderIndex)
+    public static bool FindNextLeaderIndex(IReadOnlyList<Hand> playerHands, int playerWhoStoppedRunIndex, Suit previousSuit, out int nextLeaderIndex)
     {
         ArgumentNullException.ThrowIfNull(playerHands);
 

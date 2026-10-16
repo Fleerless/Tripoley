@@ -1,13 +1,28 @@
 namespace Tripoley.Engine;
 
+public enum RoundPhase
+{
+    // AwaitingOpeningLead = No card has been played yet
+    AwaitingOpeningLead,
+    // RunInProgress = The next legal card may be played
+    RunInProgress,
+    // RunStopped = The current player may lead a new suit if they have one
+    RunStopped,
+    // RoundComplete = Play is over, can happen with or without a winner
+    RoundComplete
+}
+
 public class MichiganRound
 {
     private readonly Deal _deal;
     public int CurrentLeaderIndex { get; private set; }
     public Card? LastPlayedCard { get; private set; }
-    public bool IsRunStopped { get; private set; }
-    public bool IsRoundComplete { get; private set; }
     public int? WinnerIndex { get; private set; }
+    public RoundPhase Phase { get; private set; } = RoundPhase.AwaitingOpeningLead;
+    public bool IsAwaitingOpeningLead => Phase == RoundPhase.AwaitingOpeningLead;
+    public bool IsRunInProgress => Phase == RoundPhase.RunInProgress;
+    public bool IsRunStopped => Phase == RoundPhase.RunStopped;
+    public bool IsRoundComplete => Phase == RoundPhase.RoundComplete;
 
     public MichiganRound(Deal deal, int firstLeaderIndex)
     {
@@ -29,132 +44,115 @@ public class MichiganRound
 
         return _deal.PlayerHands[playerIndex];
     }
+    private void AdvanceAfterPlay(int playerIndex, Card playedCard)
+    {
+        LastPlayedCard = playedCard;
+        if (CompleteIfHandEmpty(playerIndex))
+        {
+            return;
+        }
+        HandleRunStop(playerIndex, playedCard);
+    }
+    private void HandleRunStop(int playerIndex, Card lastPlayedCard)
+    {
+        if (RunEngine.IsRunStopped(lastPlayedCard, _deal.PlayerHands))
+        {
+            if (RunEngine.CanLeadAfterStop(GetPlayerHand(playerIndex), lastPlayedCard.Suit))
+            {
+                CurrentLeaderIndex = playerIndex;
+                Phase = RoundPhase.RunStopped;
+            }
+            else if (RunEngine.FindNextLeaderIndex(_deal.PlayerHands, playerIndex, lastPlayedCard.Suit, out int nextLeaderIndex))
+            {
+                CurrentLeaderIndex = nextLeaderIndex;
+                Phase = RoundPhase.RunStopped;
+            }
+            else
+            {
+                Phase = RoundPhase.RoundComplete;
+                WinnerIndex = null;
+            }
+        }
+        else
+        {
+            Phase = RoundPhase.RunInProgress;
+        }
+    }
     private bool CompleteIfHandEmpty(int playerIndex)
     {
         Hand hand = GetPlayerHand(playerIndex);
         if (hand.CardsRemaining <= 0)
         {
-            IsRoundComplete = true;
+            Phase = RoundPhase.RoundComplete;
             WinnerIndex = playerIndex;
             return true;
         }
         return false;
     }
-    private bool HandleRunStop(int playerIndex)
-    {
-        if (LastPlayedCard is null)
-        {
-            return false;
-        }
-
-        if (RunEngine.IsRunStopped(LastPlayedCard, _deal.PlayerHands, _deal.Widow))
-        {
-            if (RunEngine.CanLeadAfterStop(GetPlayerHand(playerIndex), LastPlayedCard.Suit))
-            {
-                CurrentLeaderIndex = playerIndex;
-                IsRunStopped = true;
-                return true;
-            }
-            else if (RunEngine.TryFindNextLeader(_deal.PlayerHands, playerIndex, LastPlayedCard.Suit, out int nextLeaderIndex))
-            {
-                CurrentLeaderIndex = nextLeaderIndex;
-                IsRunStopped = true;
-                return true;
-            }
-            else
-            {
-                IsRoundComplete = true;
-                IsRunStopped = true;
-                WinnerIndex = null;
-                return true;
-            }
-        }
-        IsRunStopped = false;
-        return false;
-    }
-    public bool TryLeadOpeningCard(int playerIndex, Card cardToLead)
+    private bool TryLeadOpeningCard(int playerIndex, Card cardToLead)
     {
         Hand hand = GetPlayerHand(playerIndex);
 
-        if (LastPlayedCard is not null || playerIndex != CurrentLeaderIndex || IsRoundComplete)
+        if (
+            Phase != RoundPhase.AwaitingOpeningLead || 
+            playerIndex != CurrentLeaderIndex ||
+            !RunEngine.CanLeadRun(hand, cardToLead)
+        )
         {
             return false;
         }
 
-        if (!RunEngine.TryLeadRun(hand, cardToLead))
-        {
-            return false;
-        }
-
-        LastPlayedCard = cardToLead;
-
-        if (HandleRunStop(playerIndex))
-        {
-            return true;
-        }
+        if (!hand.TryRemoveCard(cardToLead)) return false;
+        
+        AdvanceAfterPlay(playerIndex, cardToLead);
 
         return true;
     }
-    public bool TryPlayNextCard(int playerIndex, Card cardToPlay)
+    private bool TryPlayNextCard(int playerIndex, Card cardToPlay)
     {
         Hand hand = GetPlayerHand(playerIndex);
-
-        if (LastPlayedCard is null || IsRoundComplete)
+        
+        if (
+            Phase != RoundPhase.RunInProgress ||
+            LastPlayedCard is null ||
+            !RunEngine.IsLegalNextCard(LastPlayedCard, cardToPlay)
+        )
         {
             return false;
         }
 
-        if (!RunEngine.IsLegalNextCard(LastPlayedCard, cardToPlay))
-        {
-            return false;
-        }
+        if (!hand.TryRemoveCard(cardToPlay)) return false;
 
-        if (!hand.TryRemoveCard(cardToPlay))
-        {
-            return false;
-        }
-
-        LastPlayedCard = cardToPlay;
-
-        if (CompleteIfHandEmpty(playerIndex))
-        {
-            return true;
-        }
-
-        if (HandleRunStop(playerIndex))
-        {
-            return true;
-        }
-
+        AdvanceAfterPlay(playerIndex, cardToPlay);
+        
         return true;
     }
-    public bool TryLeadCardAfterStop(int playerIndex, Card cardToLead)
+    private bool TryLeadCardAfterStop(int playerIndex, Card cardToLead)
     {
         Hand hand = GetPlayerHand(playerIndex);
-
-        if (IsRoundComplete || playerIndex != CurrentLeaderIndex || !IsRunStopped || LastPlayedCard is null)
+        
+        if (
+            Phase != RoundPhase.RunStopped ||
+            playerIndex != CurrentLeaderIndex ||
+            LastPlayedCard is null ||
+            !RunEngine.CanLeadWithCardAfterStop(hand, cardToLead, LastPlayedCard.Suit)
+        )
         {
             return false;
         }
 
-        if (!RunEngine.TryLeadAfterStop(hand, cardToLead, LastPlayedCard.Suit))
-        {
-            return false;
-        }
+        if (!hand.TryRemoveCard(cardToLead)) return false;
 
-        LastPlayedCard = cardToLead;
-        IsRunStopped = false;
-
-        if (CompleteIfHandEmpty(playerIndex))
-        {
-            return true;
-        }
-
-        if (HandleRunStop(playerIndex))
-        {
-            return true;
-        }
-
+        AdvanceAfterPlay(playerIndex, cardToLead);
+        
         return true;
     }
+    public bool TryPlay(int playerIndex, Card cardToPlay) => Phase switch
+    {
+        RoundPhase.AwaitingOpeningLead => TryLeadOpeningCard(playerIndex, cardToPlay),
+        RoundPhase.RunInProgress => TryPlayNextCard(playerIndex, cardToPlay),
+        RoundPhase.RunStopped => TryLeadCardAfterStop(playerIndex, cardToPlay),
+        RoundPhase.RoundComplete => false,
+        _ => throw new InvalidOperationException($"Unknown phase {Phase}")
+    };
 }
