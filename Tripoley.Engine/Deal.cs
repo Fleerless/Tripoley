@@ -2,22 +2,17 @@ namespace Tripoley.Engine;
 
 public class Deal
 {
+    public const int MinPlayerCount = 2;
+    public const int MaxPlayerCount = 9;
     private readonly List<Hand> _playerHands = [];
     public IReadOnlyList<Hand> PlayerHands => _playerHands;
-    public Hand Widow { get; }
+    public Hand Widow { get; private set; }
 
-    public Deal(Deck deck, int playerCount)
+    public Deal(int playerCount)
     {
-        ArgumentNullException.ThrowIfNull(deck);
-
-        if (deck.CardsRemaining == 0)
+        if (playerCount < MinPlayerCount || playerCount > MaxPlayerCount)
         {
-            throw new InvalidOperationException("Cannot deal with an empty deck.");
-        }
-
-        if (playerCount < 2 || playerCount > 9)
-        {
-            throw new ArgumentOutOfRangeException(nameof(playerCount), "Player count must be between 2 and 9.");
+            throw new ArgumentOutOfRangeException(nameof(playerCount), $"Player count must be between {MinPlayerCount} and {MaxPlayerCount}.");
         }
 
         Widow = new Hand();
@@ -26,20 +21,28 @@ public class Deal
         {
             _playerHands.Add(new Hand());
         }
-
-        while (deck.CardsRemaining > 0)
+    }
+    private void DealCards(Deck deck)
+    {
+        int slotCount = _playerHands.Count + 1;
+        for (int slot = 0; deck.CardsRemaining > 0; slot = (slot + 1) % slotCount)
         {
-            for (
-                int playerIndex = 0;
-                playerIndex < _playerHands.Count && deck.CardsRemaining > 0;
-                playerIndex++)
-            {
-                _playerHands[playerIndex].AddCard(deck.Draw());
-            }
-            if (deck.CardsRemaining > 0)
-            {
-                Widow.AddCard(deck.Draw());
-            }
+            Hand target = slot == _playerHands.Count ? Widow : _playerHands[slot];
+            target.AddCard(deck.Draw());
         }
+        
+    }
+    public static Deal Create(Deck deck, int playerCount)
+    {
+        ArgumentNullException.ThrowIfNull(deck);
+
+        if (deck.CardsRemaining == 0)
+        {
+            throw new InvalidOperationException("Cannot create a deal from an empty deck.");
+        }
+
+        var deal = new Deal(playerCount);
+        deal.DealCards(deck);
+        return deal;
     }
 }
