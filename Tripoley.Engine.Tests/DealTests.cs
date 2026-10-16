@@ -5,7 +5,7 @@ public class DealTests
     [Fact]
     public void Deal_NullDeck_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => new Deal(null!, 2));
+        Assert.Throws<ArgumentNullException>(() => Deal.Create(null!, 2));
     }
 
     [Fact]
@@ -18,7 +18,7 @@ public class DealTests
             deck.Draw();
         }
 
-        Assert.Throws<InvalidOperationException>(() => new Deal(deck, 2));
+        Assert.Throws<InvalidOperationException>(() => Deal.Create(deck, 2));
     }
     [Fact]
     public void Deal_ValidDeck_DistributesAllCardsAcrossPlayersAndWidow()
@@ -26,7 +26,7 @@ public class DealTests
         Deck deck = new Deck();
         deck.Shuffle();
 
-        Deal deal = new Deal(deck, 2);
+        Deal deal = Deal.Create(deck, 2);
 
         int totalCards = deal.PlayerHands.Sum(hand => hand.CardsRemaining) + deal.Widow.CardsRemaining;
 
@@ -48,7 +48,7 @@ public class DealTests
     public void Deal_ValidPlayerCounts_DistributeAllCardsAcrossPlayersAndWidowEvenly(int playerCount)
     {
         Deck deck = new Deck();
-        Deal deal = new Deal(deck, playerCount);
+        Deal deal = Deal.Create(deck, playerCount);
         int totalCards = deal.Widow.CardsRemaining;
         int smallestHandSize = deal.Widow.CardsRemaining;
         int largestHandSize = deal.Widow.CardsRemaining;
@@ -78,7 +78,7 @@ public class DealTests
     {
         Deck deck = new Deck();
 
-        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Deal(deck, 1));
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => Deal.Create(deck, 1));
         
         Assert.Equal("playerCount", ex.ParamName);
         Assert.Contains("Player count must be between 2 and 9", ex.Message);
@@ -88,7 +88,7 @@ public class DealTests
     {
         Deck deck = new Deck();
 
-        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Deal(deck, 10));
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => Deal.Create(deck, 10));
 
         Assert.Equal("playerCount", ex.ParamName);
         Assert.Contains("Player count must be between 2 and 9", ex.Message);

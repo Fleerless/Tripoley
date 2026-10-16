@@ -258,7 +258,7 @@ public class MichiganRoundTests
 
 	private static Deal CreateEmptyDeal()
 	{
-		Deal deal = new Deal(new Deck(), 2);
+		Deal deal = Deal.Create(new Deck(), 2);
 
 		foreach (Hand hand in deal.PlayerHands.Append(deal.Widow))
 		{
