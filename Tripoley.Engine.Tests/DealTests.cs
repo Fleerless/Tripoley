@@ -3,6 +3,12 @@ namespace Tripoley.Engine.Tests;
 public class DealTests
 {
     [Fact]
+    public void Deal_NullDeck_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new Deal(null!, 2));
+    }
+
+    [Fact]
     public void Deal_EmptyDeck_ThrowsInvalidOperationException()
     {
         Deck deck = new Deck();

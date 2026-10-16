@@ -9,6 +9,19 @@ public class HandTests
 
         Assert.Equal(0, hand.CardsRemaining);
     }
+
+    [Fact]
+    public void Cards_ExposesReadOnlyViewOfHand()
+    {
+        Hand hand = new Hand();
+        Card card = new Card(Suit.Hearts, Rank.Ace);
+        hand.AddCard(card);
+
+        Assert.Equal(new[] { card }, hand.Cards);
+        Assert.Throws<NotSupportedException>(() => ((IList<Card>)hand.Cards).Add(new Card(Suit.Clubs, Rank.Two)));
+        Assert.Equal(1, hand.CardsRemaining);
+    }
+
     [Fact]
     public void AddCard_IncreasesCardCount()
     {

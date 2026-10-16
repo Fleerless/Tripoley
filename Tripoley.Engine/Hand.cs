@@ -1,15 +1,16 @@
 namespace Tripoley.Engine;
 
-public class Hand
+public sealed class Hand
 {
     private readonly List<Card> _cards = [];
+    public IReadOnlyList<Card> Cards => _cards.AsReadOnly();
     public int CardsRemaining => _cards.Count;
 
-    public void AddCard(Card card)
+    internal void AddCard(Card card)
     {
         _cards.Add(card);
     }
-    public bool TryRemoveCard(Card card)
+    internal bool TryRemoveCard(Card card)
     {
         return _cards.Remove(card);
     }
@@ -30,7 +31,7 @@ public class Hand
 
         var lowestCard = _cards
             .Where(handCard => handCard.Suit == card.Suit)
-            .MinBy(handCard => RankExtensions.GetValue(handCard.Rank));
+            .MinBy(handCard => handCard.Rank);
 
         return card == lowestCard;
     }

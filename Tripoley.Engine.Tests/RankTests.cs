@@ -16,14 +16,16 @@ public class RankTests
     [InlineData(Rank.Five, 5)]
     [InlineData(Rank.King, 13)]
     [InlineData(Rank.Ace, 14)]
-    public void Rank_GetValue_UsesAceHighOrdering(Rank rank, int expected)
+    public void Rank_UnderlyingValue_UsesAceHighOrdering(Rank rank, int expected)
     {
-        Assert.Equal(expected, rank.GetValue());
+        Assert.Equal((int)rank, expected);
     }
 
     [Fact]
-    public void Rank_GetValue_WhenRankIsInvalid_ThrowsArgumentOutOfRangeException()
+    public void Rank_Values_AreConsecutiveFromTwoThroughAce()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => ((Rank)(-1)).GetValue());
+        int[] values = Enum.GetValues<Rank>().Select(rank => (int)rank).Order().ToArray();
+
+        Assert.Equal(Enumerable.Range(2, 13), values);
     }
 }

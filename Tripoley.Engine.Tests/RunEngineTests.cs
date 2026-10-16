@@ -54,43 +54,30 @@ public class RunEngineTests
     public void IsRunStopped_WhenLastPlayedCardIsAce_ReturnsTrue()
     {
         Card lastPlayedCard = new Card(Suit.Diamonds, Rank.Ace);
-        List<Hand> activeHands = new List<Hand>();
-        Hand widowHand = new Hand();
+        Hand activeHand = new Hand();
+        activeHand.AddCard(new Card(Suit.Diamonds, Rank.Two));
 
-        Assert.True(RunEngine.IsRunStopped(lastPlayedCard, activeHands, widowHand));
+        Assert.True(RunEngine.IsRunStopped(lastPlayedCard, [activeHand]));
     }
     [Fact]
     public void IsRunStopped_WhenNextCardIsNotInAnyActiveHand_ReturnsTrue()
     {
         Card lastPlayedCard = new Card(Suit.Spades, Rank.Eight);
         List<Hand> activeHands = new List<Hand>();
-        Hand widowHand = new Hand();
 
-        Assert.True(RunEngine.IsRunStopped(lastPlayedCard, activeHands, widowHand));
-    }
-    [Fact]
-    public void IsRunStopped_WhenNextCardIsInWidowHand_ReturnsTrue()
-    {
-        Card lastPlayedCard = new Card(Suit.Clubs, Rank.Nine);
-        List<Hand> activeHands = new List<Hand>();
-        Hand widowHand = new Hand();
-        
-        widowHand.AddCard(new Card(Suit.Clubs, Rank.Ten));
-
-        Assert.True(RunEngine.IsRunStopped(lastPlayedCard, activeHands, widowHand));
+        Assert.True(RunEngine.IsRunStopped(lastPlayedCard, activeHands));
     }
     [Fact]
     public void IsRunStopped_WhenNextCardIsInAnActiveHand_ReturnsFalse()
     {
         Card lastPlayedCard = new Card(Suit.Diamonds, Rank.Jack);
         List<Hand> activeHands = new List<Hand>();
-        Hand widowHand = new Hand();
 
         Hand activeHand = new Hand();
         activeHand.AddCard(new Card(Suit.Diamonds, Rank.Queen));
         activeHands.Add(activeHand);
 
-        Assert.False(RunEngine.IsRunStopped(lastPlayedCard, activeHands, widowHand));
+        Assert.False(RunEngine.IsRunStopped(lastPlayedCard, activeHands));
     }
 
     [Theory]
@@ -112,7 +99,7 @@ public class RunEngineTests
         Hand activeHand = new Hand();
         activeHand.AddCard(new Card(Suit.Clubs, nextRank));
 
-        bool isStopped = RunEngine.IsRunStopped(lastPlayedCard, [activeHand], new Hand());
+        bool isStopped = RunEngine.IsRunStopped(lastPlayedCard, [activeHand]);
 
         Assert.False(isStopped);
     }
@@ -123,7 +110,7 @@ public class RunEngineTests
         Card lastPlayedCard = new Card(Suit.Clubs, (Rank)(-1));
 
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => RunEngine.IsRunStopped(lastPlayedCard, [], new Hand()));
+            () => RunEngine.IsRunStopped(lastPlayedCard, []));
     }
 
     [Theory]
@@ -157,7 +144,7 @@ public class RunEngineTests
         Assert.False(RunEngine.CanLeadAfterStop(hand, previousCard.Suit));
     }
     [Fact]
-    public void TryLeadAfterStop_WhenLowestDifferentSuitOfSameColorIsPlayed_ReturnsTrueAndRemovesCard()
+    public void CanLeadWithCardAfterStop_WhenLowestDifferentSuitOfSameColorIsPlayed_ReturnsTrue()
     {
         var hand = new Hand();
         var previousCard = new Card(Suit.Hearts, Rank.Ace);
@@ -165,31 +152,11 @@ public class RunEngineTests
         hand.AddCard(lowestDiamond);
         hand.AddCard(new Card(Suit.Diamonds, Rank.Six));
 
-        var result = RunEngine.TryLeadAfterStop(hand, lowestDiamond, previousCard.Suit);
-
-        Assert.True(result);
-        Assert.False(hand.Contains(lowestDiamond));
+        Assert.True(RunEngine.CanLeadWithCardAfterStop(hand, lowestDiamond, previousCard.Suit));
+        Assert.True(hand.Contains(lowestDiamond));
     }
     [Fact]
-    public void IsRunStopped_WhenNextCardIsUnavailableAnywhere_ReturnsTrue()
-    {
-        var lastPlayedCard = new Card(Suit.Spades, Rank.Eight);
-
-        var firstHand = new Hand();
-        var secondHand = new Hand();
-
-        var activeHands = new List<Hand>
-        {
-            firstHand,
-            secondHand
-        };
-
-        var widowHand = new Hand();
-
-        Assert.True(RunEngine.IsRunStopped(lastPlayedCard, activeHands, widowHand));
-    }
-    [Fact]
-    public void TryLeadRun_WhenCardIsLowestInItsSuit_ReturnsTrueAndRemovesCard()
+    public void CanLeadRun_WhenCardIsLowestInItsSuit_ReturnsTrue()
     {
         var hand = new Hand();
         var lowestHeart = new Card(Suit.Hearts, Rank.Seven);
@@ -197,15 +164,13 @@ public class RunEngineTests
         hand.AddCard(lowestHeart);
         hand.AddCard(higherHeart);
 
-        var result = RunEngine.TryLeadRun(hand, lowestHeart);
-
-        Assert.True(result);
-        Assert.False(hand.Contains(lowestHeart));
+        Assert.True(RunEngine.CanLeadRun(hand, lowestHeart));
+        Assert.True(hand.Contains(lowestHeart));
         Assert.True(hand.Contains(higherHeart));
     }
 
     [Fact]
-    public void TryLeadRun_WhenCardIsNotLowestInItsSuit_ReturnsFalseAndLeavesHandUnchanged()
+    public void CanLeadRun_WhenCardIsNotLowestInItsSuit_ReturnsFalseAndLeavesHandUnchanged()
     {
         var hand = new Hand();
         var lowestHeart = new Card(Suit.Hearts, Rank.Six);
@@ -213,29 +178,25 @@ public class RunEngineTests
         hand.AddCard(lowestHeart);
         hand.AddCard(higherHeart);
 
-        var result = RunEngine.TryLeadRun(hand, higherHeart);
-
-        Assert.False(result);
+        Assert.False(RunEngine.CanLeadRun(hand, higherHeart));
         Assert.True(hand.Contains(lowestHeart));
         Assert.True(hand.Contains(higherHeart));
     }
 
     [Fact]
-    public void TryLeadRun_WhenCardIsNotInHand_ReturnsFalseAndLeavesHandUnchanged()
+    public void CanLeadRun_WhenCardIsNotInHand_ReturnsFalse()
     {
         var hand = new Hand();
         var heldHeart = new Card(Suit.Hearts, Rank.Five);
         var attemptedCard = new Card(Suit.Hearts, Rank.Jack);
         hand.AddCard(heldHeart);
 
-        var result = RunEngine.TryLeadRun(hand, attemptedCard);
-
-        Assert.False(result);
+        Assert.False(RunEngine.CanLeadRun(hand, attemptedCard));
         Assert.True(hand.Contains(heldHeart));
         Assert.Equal(1, hand.CardsRemaining);
     }
     [Fact]
-    public void TryLeadAfterStop_WhenCardIsLowestInItsSuitAndValid_ReturnsTrueAndRemovesCard()
+    public void CanLeadWithCardAfterStop_WhenCardIsLowestInItsSuitAndValid_ReturnsTrue()
     {
         var hand = new Hand();
         var previousCard = new Card(Suit.Spades, Rank.Four);
@@ -244,14 +205,12 @@ public class RunEngineTests
         hand.AddCard(lowestHeart);
         hand.AddCard(higherHeart);
 
-        var result = RunEngine.TryLeadAfterStop(hand, lowestHeart, previousCard.Suit);
-
-        Assert.True(result);
-        Assert.False(hand.Contains(lowestHeart));
+        Assert.True(RunEngine.CanLeadWithCardAfterStop(hand, lowestHeart, previousCard.Suit));
+        Assert.True(hand.Contains(lowestHeart));
         Assert.True(hand.Contains(higherHeart));
     }
     [Fact]
-    public void TryLeadAfterStop_WhenCardIsNotLowestInItsSuit_ReturnsFalseAndLeavesHandUnchanged()
+    public void CanLeadWithCardAfterStop_WhenCardIsNotLowestInItsSuit_ReturnsFalse()
     {
         var hand = new Hand();
         var previousCard = new Card(Suit.Spades, Rank.Three);
@@ -260,41 +219,37 @@ public class RunEngineTests
         hand.AddCard(lowestHeart);
         hand.AddCard(higherHeart);
 
-        var result = RunEngine.TryLeadAfterStop(hand, higherHeart, previousCard.Suit);
-
-        Assert.False(result);
+        Assert.False(RunEngine.CanLeadWithCardAfterStop(hand, higherHeart, previousCard.Suit));
         Assert.True(hand.Contains(lowestHeart));
         Assert.True(hand.Contains(higherHeart));
     }
     [Fact]
-    public void TryLeadAfterStop_WhenCardIsSameSuit_ReturnsFalseAndLeavesHandUnchanged()
+    public void CanLeadWithCardAfterStop_WhenCardIsSameSuit_ReturnsFalse()
     {
         var hand = new Hand();
         var previousCard = new Card(Suit.Spades, Rank.Ace);
         var attemptedSpade = new Card(Suit.Spades, Rank.Three);
         hand.AddCard(attemptedSpade);
 
-        var result = RunEngine.TryLeadAfterStop(hand, attemptedSpade, previousCard.Suit);
-
-        Assert.False(result);
+        Assert.False(RunEngine.CanLeadWithCardAfterStop(hand, attemptedSpade, previousCard.Suit));
         Assert.True(hand.Contains(attemptedSpade));
     }
 
     [Fact]
-    public void TryFindNextLeader_WhenStoppingPlayerCanLead_ReturnsThatPlayer()
+    public void FindNextLeaderIndex_WhenStoppingPlayerCanLead_ReturnsThatPlayer()
     {
         List<Hand> playerHands = [new(), new(), new(), new(), new()];
         playerHands[2].AddCard(new Card(Suit.Clubs, Rank.Two));
         playerHands[3].AddCard(new Card(Suit.Diamonds, Rank.Two));
 
-        bool foundLeader = RunEngine.TryFindNextLeader(playerHands, 2, Suit.Hearts, out int nextLeaderIndex);
+        bool foundLeader = RunEngine.FindNextLeaderIndex(playerHands, 2, Suit.Hearts, out int nextLeaderIndex);
 
         Assert.True(foundLeader);
         Assert.Equal(2, nextLeaderIndex);
     }
 
     [Fact]
-    public void TryFindNextLeader_WhenStoppingPlayerCannotLead_ReturnsNextEligiblePlayerClockwise()
+    public void FindNextLeaderIndex_WhenStoppingPlayerCannotLead_ReturnsNextEligiblePlayerClockwise()
     {
         List<Hand> playerHands = [new(), new(), new(), new(), new()];
         playerHands[2].AddCard(new Card(Suit.Hearts, Rank.Two));
@@ -302,14 +257,14 @@ public class RunEngineTests
         playerHands[4].AddCard(new Card(Suit.Clubs, Rank.Two));
         playerHands[0].AddCard(new Card(Suit.Diamonds, Rank.Two));
 
-        bool foundLeader = RunEngine.TryFindNextLeader(playerHands, 2, Suit.Hearts, out int nextLeaderIndex);
+        bool foundLeader = RunEngine.FindNextLeaderIndex(playerHands, 2, Suit.Hearts, out int nextLeaderIndex);
 
         Assert.True(foundLeader);
         Assert.Equal(4, nextLeaderIndex);
     }
 
     [Fact]
-    public void TryFindNextLeader_WhenEligiblePlayerIsBeforeStoppingPlayer_WrapsAround()
+    public void FindNextLeaderIndex_WhenEligiblePlayerIsBeforeStoppingPlayer_WrapsAround()
     {
         List<Hand> playerHands = [new(), new(), new(), new(), new()];
         playerHands[0].AddCard(new Card(Suit.Clubs, Rank.Two));
@@ -317,21 +272,21 @@ public class RunEngineTests
         playerHands[3].AddCard(new Card(Suit.Hearts, Rank.Three));
         playerHands[4].AddCard(new Card(Suit.Hearts, Rank.Four));
 
-        bool foundLeader = RunEngine.TryFindNextLeader(playerHands, 2, Suit.Hearts, out int nextLeaderIndex);
+        bool foundLeader = RunEngine.FindNextLeaderIndex(playerHands, 2, Suit.Hearts, out int nextLeaderIndex);
 
         Assert.True(foundLeader);
         Assert.Equal(0, nextLeaderIndex);
     }
 
     [Fact]
-    public void TryFindNextLeader_WhenNoPlayerCanLead_ReturnsFalse()
+    public void FindNextLeaderIndex_WhenNoPlayerCanLead_ReturnsFalse()
     {
         List<Hand> playerHands = [new(), new(), new()];
         playerHands[0].AddCard(new Card(Suit.Hearts, Rank.Two));
         playerHands[1].AddCard(new Card(Suit.Hearts, Rank.Three));
         playerHands[2].AddCard(new Card(Suit.Hearts, Rank.Four));
 
-        bool foundLeader = RunEngine.TryFindNextLeader(playerHands, 1, Suit.Hearts, out _);
+        bool foundLeader = RunEngine.FindNextLeaderIndex(playerHands, 1, Suit.Hearts, out _);
 
         Assert.False(foundLeader);
     }
@@ -339,18 +294,18 @@ public class RunEngineTests
     [Theory]
     [InlineData(-1)]
     [InlineData(3)]
-    public void TryFindNextLeader_WhenStoppingPlayerIndexIsOutOfRange_Throws(int stoppingPlayerIndex)
+    public void FindNextLeaderIndex_WhenStoppingPlayerIndexIsOutOfRange_Throws(int stoppingPlayerIndex)
     {
         List<Hand> playerHands = [new(), new(), new()];
 
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => RunEngine.TryFindNextLeader(playerHands, stoppingPlayerIndex, Suit.Hearts, out _));
+            () => RunEngine.FindNextLeaderIndex(playerHands, stoppingPlayerIndex, Suit.Hearts, out _));
     }
 
     [Fact]
-    public void TryFindNextLeader_WhenPlayerHandsIsNull_ThrowsArgumentNullException()
+    public void FindNextLeaderIndex_WhenPlayerHandsIsNull_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(
-            () => RunEngine.TryFindNextLeader(null!, 0, Suit.Hearts, out _));
+            () => RunEngine.FindNextLeaderIndex(null!, 0, Suit.Hearts, out _));
     }
 }
