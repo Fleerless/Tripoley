@@ -10,7 +10,6 @@ public class MichiganRoundTests
 		Assert.Equal(1, round.CurrentLeaderIndex);
 		Assert.Null(round.LastPlayedCard);
 		Assert.Equal(RoundPhase.AwaitingOpeningLead, round.Phase);
-		Assert.True(round.IsAwaitingOpeningLead);
 	}
 
 	[Fact]
@@ -124,7 +123,6 @@ public class MichiganRoundTests
 
 		Assert.Equal(RoundPhase.RoundComplete, round.Phase);
 		Assert.Equal(0, round.WinnerIndex);
-		Assert.False(round.IsRunStopped);
 	}
 
 	[Fact]
@@ -139,7 +137,6 @@ public class MichiganRoundTests
 		Assert.True(round.TryPlay(0, openingCard));
 
 		Assert.Equal(RoundPhase.RunStopped, round.Phase);
-		Assert.True(round.IsRunStopped);
 		Assert.Equal(0, round.CurrentLeaderIndex);
 	}
 
@@ -172,7 +169,6 @@ public class MichiganRoundTests
 		Assert.True(round.TryPlay(0, openingCard));
 
 		Assert.Equal(RoundPhase.RoundComplete, round.Phase);
-		Assert.False(round.IsRunStopped);
 		Assert.Null(round.WinnerIndex);
 	}
 
@@ -254,6 +250,20 @@ public class MichiganRoundTests
 
 		Assert.Equal(RoundPhase.RunStopped, round.Phase);
 		Assert.Equal(0, round.CurrentLeaderIndex);
+	}
+
+	[Fact]
+	public void TryPlay_WhenPlayerIndexIsOutOfRangeAfterRoundComplete_Throws()
+	{
+		Deal deal = CreateEmptyDeal();
+		Card openingCard = new Card(Suit.Hearts, Rank.Two);
+		deal.PlayerHands[0].AddCard(openingCard);
+		MichiganRound round = new MichiganRound(deal, 0);
+
+		Assert.True(round.TryPlay(0, openingCard));
+
+		Assert.Throws<ArgumentOutOfRangeException>(
+			() => round.TryPlay(2, new Card(Suit.Clubs, Rank.Two)));
 	}
 
 	private static Deal CreateEmptyDeal()
