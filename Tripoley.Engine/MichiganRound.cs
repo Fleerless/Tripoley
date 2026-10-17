@@ -19,10 +19,6 @@ public class MichiganRound
     public Card? LastPlayedCard { get; private set; }
     public int? WinnerIndex { get; private set; }
     public RoundPhase Phase { get; private set; } = RoundPhase.AwaitingOpeningLead;
-    public bool IsAwaitingOpeningLead => Phase == RoundPhase.AwaitingOpeningLead;
-    public bool IsRunInProgress => Phase == RoundPhase.RunInProgress;
-    public bool IsRunStopped => Phase == RoundPhase.RunStopped;
-    public bool IsRoundComplete => Phase == RoundPhase.RoundComplete;
 
     public MichiganRound(Deal deal, int firstLeaderIndex)
     {
@@ -35,13 +31,15 @@ public class MichiganRound
         _deal = deal;
         CurrentLeaderIndex = firstLeaderIndex;
     }
+    private void ValidatePlayerIndex(int playerIndex)
+{
+    if (playerIndex < 0 || playerIndex >= _deal.PlayerHands.Count)
+    {
+        throw new ArgumentOutOfRangeException(nameof(playerIndex));
+    }
+}
     private Hand GetPlayerHand(int playerIndex)
     {
-        if (playerIndex < 0 || playerIndex >= _deal.PlayerHands.Count)
-        {
-            throw new ArgumentOutOfRangeException(nameof(playerIndex));
-        }
-
         return _deal.PlayerHands[playerIndex];
     }
     private void AdvanceAfterPlay(int playerIndex, Card playedCard)
@@ -70,7 +68,6 @@ public class MichiganRound
             else
             {
                 Phase = RoundPhase.RoundComplete;
-                WinnerIndex = null;
             }
         }
         else
@@ -94,7 +91,6 @@ public class MichiganRound
         Hand hand = GetPlayerHand(playerIndex);
 
         if (
-            Phase != RoundPhase.AwaitingOpeningLead || 
             playerIndex != CurrentLeaderIndex ||
             !RunEngine.CanLeadRun(hand, cardToLead)
         )
@@ -113,7 +109,6 @@ public class MichiganRound
         Hand hand = GetPlayerHand(playerIndex);
         
         if (
-            Phase != RoundPhase.RunInProgress ||
             LastPlayedCard is null ||
             !RunEngine.IsLegalNextCard(LastPlayedCard, cardToPlay)
         )
@@ -132,7 +127,6 @@ public class MichiganRound
         Hand hand = GetPlayerHand(playerIndex);
         
         if (
-            Phase != RoundPhase.RunStopped ||
             playerIndex != CurrentLeaderIndex ||
             LastPlayedCard is null ||
             !RunEngine.CanLeadWithCardAfterStop(hand, cardToLead, LastPlayedCard.Suit)
@@ -147,12 +141,17 @@ public class MichiganRound
         
         return true;
     }
-    public bool TryPlay(int playerIndex, Card cardToPlay) => Phase switch
+    public bool TryPlay(int playerIndex, Card cardToPlay)
     {
-        RoundPhase.AwaitingOpeningLead => TryLeadOpeningCard(playerIndex, cardToPlay),
-        RoundPhase.RunInProgress => TryPlayNextCard(playerIndex, cardToPlay),
-        RoundPhase.RunStopped => TryLeadCardAfterStop(playerIndex, cardToPlay),
-        RoundPhase.RoundComplete => false,
-        _ => throw new InvalidOperationException($"Unknown phase {Phase}")
-    };
+        ValidatePlayerIndex(playerIndex);
+
+        return Phase switch
+        {
+            RoundPhase.AwaitingOpeningLead => TryLeadOpeningCard(playerIndex, cardToPlay),
+            RoundPhase.RunInProgress => TryPlayNextCard(playerIndex, cardToPlay),
+            RoundPhase.RunStopped => TryLeadCardAfterStop(playerIndex, cardToPlay),
+            RoundPhase.RoundComplete => false,
+            _ => throw new InvalidOperationException($"Unknown phase {Phase}")
+        };
+    }
 }
