@@ -69,4 +69,54 @@ public class HandTests
 
         Assert.False(hand.HasCardOfSuit(Suit.Spades));
     }
+    [Fact]
+    public void TryRemoveCard_WhenCardIsInHand_RemovesItAndReturnsTrue()
+    {
+        Hand hand = new Hand();
+        Card card = new Card(Suit.Hearts, Rank.Ace);
+        hand.AddCard(card);
+
+        Assert.True(hand.TryRemoveCard(card));
+
+        Assert.False(hand.Contains(card));
+        Assert.Equal(0, hand.CardsRemaining);
+    }
+    [Fact]
+    public void TryRemoveCard_WhenCardIsNotInHand_ReturnsFalse()
+    {
+        Hand hand = new Hand();
+        hand.AddCard(new Card(Suit.Hearts, Rank.Ace));
+
+        Assert.False(hand.TryRemoveCard(new Card(Suit.Spades, Rank.Two)));
+        Assert.Equal(1, hand.CardsRemaining);
+    }
+    [Fact]
+    public void IsLowestCardOfSuit_WhenCardIsLowestOfItsSuit_ReturnsTrue()
+    {
+        Hand hand = new Hand();
+        Card lowestHeart = new Card(Suit.Hearts, Rank.Four);
+        hand.AddCard(lowestHeart);
+        hand.AddCard(new Card(Suit.Hearts, Rank.Nine));
+        hand.AddCard(new Card(Suit.Clubs, Rank.Two));
+
+        Assert.True(hand.IsLowestCardOfSuit(lowestHeart));
+    }
+    [Fact]
+    public void IsLowestCardOfSuit_WhenHandHoldsLowerCardOfSameSuit_ReturnsFalse()
+    {
+        Hand hand = new Hand();
+        Card higherHeart = new Card(Suit.Hearts, Rank.Nine);
+        hand.AddCard(new Card(Suit.Hearts, Rank.Four));
+        hand.AddCard(higherHeart);
+
+        Assert.False(hand.IsLowestCardOfSuit(higherHeart));
+    }
+    [Fact]
+    public void IsLowestCardOfSuit_WhenCardIsNotInHand_ReturnsFalse()
+    {
+        Hand hand = new Hand();
+        hand.AddCard(new Card(Suit.Hearts, Rank.Four));
+
+        Assert.False(hand.IsLowestCardOfSuit(new Card(Suit.Hearts, Rank.Seven)));
+    }
 }

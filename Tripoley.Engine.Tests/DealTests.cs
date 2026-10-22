@@ -5,7 +5,13 @@ public class DealTests
     [Fact]
     public void Deal_NullDeck_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => Deal.Create(null!, 2));
+        Assert.Throws<ArgumentNullException>(() => Deal.Create(null!, CreatePlayers(2)));
+    }
+
+    [Fact]
+    public void Deal_NullPlayers_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => Deal.Create(new Deck(), null!));
     }
 
     [Fact]
@@ -18,7 +24,7 @@ public class DealTests
             deck.Draw();
         }
 
-        Assert.Throws<InvalidOperationException>(() => Deal.Create(deck, 2));
+        Assert.Throws<InvalidOperationException>(() => Deal.Create(deck, CreatePlayers(2)));
     }
     [Fact]
     public void Deal_ValidDeck_DistributesAllCardsAcrossPlayersAndWidow()
@@ -26,15 +32,24 @@ public class DealTests
         Deck deck = new Deck();
         deck.Shuffle();
 
-        Deal deal = Deal.Create(deck, 2);
+        Deal deal = Deal.Create(deck, CreatePlayers(2));
 
-        int totalCards = deal.PlayerHands.Sum(hand => hand.CardsRemaining) + deal.Widow.CardsRemaining;
+        int totalCards = deal.Seats.Sum(seat => seat.Hand.CardsRemaining) + deal.Widow.CardsRemaining;
 
         Assert.Equal(52, totalCards);
-        Assert.Equal(2, deal.PlayerHands.Count);
-        Assert.Equal(18, deal.PlayerHands[0].CardsRemaining);
-        Assert.Equal(17, deal.PlayerHands[1].CardsRemaining);
+        Assert.Equal(2, deal.Seats.Count);
+        Assert.Equal(18, deal.Seats[0].Hand.CardsRemaining);
+        Assert.Equal(17, deal.Seats[1].Hand.CardsRemaining);
         Assert.Equal(17, deal.Widow.CardsRemaining);
+    }
+    [Fact]
+    public void Deal_PreservesDealOrderAndPlayerIdentity()
+    {
+        Player[] players = CreatePlayers(3);
+
+        Deal deal = Deal.Create(new Deck(), players);
+
+        Assert.Equal(players, deal.Seats.Select(seat => seat.Player));
     }
     [Theory]
     [InlineData(2)]
@@ -48,14 +63,14 @@ public class DealTests
     public void Deal_ValidPlayerCounts_DistributeAllCardsAcrossPlayersAndWidowEvenly(int playerCount)
     {
         Deck deck = new Deck();
-        Deal deal = Deal.Create(deck, playerCount);
+        Deal deal = Deal.Create(deck, CreatePlayers(playerCount));
         int totalCards = deal.Widow.CardsRemaining;
         int smallestHandSize = deal.Widow.CardsRemaining;
         int largestHandSize = deal.Widow.CardsRemaining;
 
-        foreach (Hand hand in deal.PlayerHands)
+        foreach (Seat seat in deal.Seats)
         {
-            int handSize = hand.CardsRemaining;
+            int handSize = seat.Hand.CardsRemaining;
             totalCards += handSize;
 
             if (handSize < smallestHandSize)
@@ -69,28 +84,28 @@ public class DealTests
             }
         }
 
-        Assert.Equal(playerCount, deal.PlayerHands.Count);
+        Assert.Equal(playerCount, deal.Seats.Count);
         Assert.Equal(52, totalCards);
         Assert.InRange(largestHandSize - smallestHandSize, 0, 1);
     }
-    [Fact]
-    public void Deal_PlayerCountBelowTwo_ThrowsArgumentOutOfRangeException()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(10)]
+    public void Deal_InvalidPlayerCount_ThrowsArgumentException(int playerCount)
     {
         Deck deck = new Deck();
 
-        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => Deal.Create(deck, 1));
+        var ex = Assert.ThrowsAny<ArgumentException>(() => Deal.Create(deck, CreatePlayers(playerCount)));
         
-        Assert.Equal("playerCount", ex.ParamName);
-        Assert.Contains("Player count must be between 2 and 9", ex.Message);
+        Assert.Equal("playersInDealOrder", ex.ParamName);
     }
-    [Fact]
-    public void Deal_PlayerCountAboveNine_ThrowsArgumentOutOfRangeException()
+
+    private static Player[] CreatePlayers(int count)
     {
-        Deck deck = new Deck();
-
-        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => Deal.Create(deck, 10));
-
-        Assert.Equal("playerCount", ex.ParamName);
-        Assert.Contains("Player count must be between 2 and 9", ex.Message);
+        return Enumerable
+            .Range(1, count)
+            .Select(index => new Player(chipCount: 100, name: $"Player {index}"))
+            .ToArray();
     }
 }
