@@ -39,14 +39,14 @@ public class MichiganRoundTests
 		Deal deal = CreateEmptyDeal();
 		Card openingCard = new Card(Suit.Hearts, Rank.Two);
 		Card nextCard = new Card(Suit.Hearts, Rank.Three);
-		deal.PlayerHands[0].AddCard(openingCard);
-		deal.PlayerHands[0].AddCard(new Card(Suit.Clubs, Rank.Two));
-		deal.PlayerHands[1].AddCard(nextCard);
+		deal.Seats[0].Hand.AddCard(openingCard);
+		deal.Seats[0].Hand.AddCard(new Card(Suit.Clubs, Rank.Two));
+		deal.Seats[1].Hand.AddCard(nextCard);
 		MichiganRound round = new MichiganRound(deal, 0);
 
 		Assert.True(round.TryPlay(0, openingCard));
 
-		Assert.False(deal.PlayerHands[0].Contains(openingCard));
+		Assert.False(deal.Seats[0].Hand.Contains(openingCard));
 		Assert.Equal(openingCard, round.LastPlayedCard);
 		Assert.Equal(RoundPhase.RunInProgress, round.Phase);
 	}
@@ -58,9 +58,9 @@ public class MichiganRoundTests
 		Card lowestCard = new Card(Suit.Spades, Rank.Two);
 		Card higherCard = new Card(Suit.Spades, Rank.Three);
 		Card otherPlayerCard = new Card(Suit.Clubs, Rank.Two);
-		deal.PlayerHands[0].AddCard(lowestCard);
-		deal.PlayerHands[0].AddCard(higherCard);
-		deal.PlayerHands[1].AddCard(otherPlayerCard);
+		deal.Seats[0].Hand.AddCard(lowestCard);
+		deal.Seats[0].Hand.AddCard(higherCard);
+		deal.Seats[1].Hand.AddCard(otherPlayerCard);
 		MichiganRound round = new MichiganRound(deal, 0);
 
 		Assert.False(round.TryPlay(1, otherPlayerCard));
@@ -68,8 +68,8 @@ public class MichiganRoundTests
 
 		Assert.Equal(RoundPhase.AwaitingOpeningLead, round.Phase);
 		Assert.Null(round.LastPlayedCard);
-		Assert.True(deal.PlayerHands[0].Contains(lowestCard));
-		Assert.True(deal.PlayerHands[0].Contains(higherCard));
+		Assert.True(deal.Seats[0].Hand.Contains(lowestCard));
+		Assert.True(deal.Seats[0].Hand.Contains(higherCard));
 	}
 
 	[Fact]
@@ -79,16 +79,16 @@ public class MichiganRoundTests
 		Card two = new Card(Suit.Hearts, Rank.Two);
 		Card three = new Card(Suit.Hearts, Rank.Three);
 		Card four = new Card(Suit.Hearts, Rank.Four);
-		deal.PlayerHands[0].AddCard(two);
-		deal.PlayerHands[0].AddCard(four);
-		deal.PlayerHands[1].AddCard(three);
-		deal.PlayerHands[1].AddCard(new Card(Suit.Clubs, Rank.Two));
+		deal.Seats[0].Hand.AddCard(two);
+		deal.Seats[0].Hand.AddCard(four);
+		deal.Seats[1].Hand.AddCard(three);
+		deal.Seats[1].Hand.AddCard(new Card(Suit.Clubs, Rank.Two));
 		MichiganRound round = new MichiganRound(deal, 0);
 
 		Assert.True(round.TryPlay(0, two));
 		Assert.True(round.TryPlay(1, three));
 
-		Assert.False(deal.PlayerHands[1].Contains(three));
+		Assert.False(deal.Seats[1].Hand.Contains(three));
 		Assert.Equal(three, round.LastPlayedCard);
 		Assert.Equal(RoundPhase.RunInProgress, round.Phase);
 	}
@@ -99,14 +99,14 @@ public class MichiganRoundTests
 		Deal deal = CreateEmptyDeal();
 		Card two = new Card(Suit.Hearts, Rank.Two);
 		Card four = new Card(Suit.Hearts, Rank.Four);
-		deal.PlayerHands[0].AddCard(two);
-		deal.PlayerHands[0].AddCard(new Card(Suit.Clubs, Rank.Two));
-		deal.PlayerHands[1].AddCard(four);
+		deal.Seats[0].Hand.AddCard(two);
+		deal.Seats[0].Hand.AddCard(new Card(Suit.Clubs, Rank.Two));
+		deal.Seats[1].Hand.AddCard(four);
 		MichiganRound round = new MichiganRound(deal, 0);
 		round.TryPlay(0, two);
 
 		Assert.False(round.TryPlay(1, four));
-		Assert.True(deal.PlayerHands[1].Contains(four));
+		Assert.True(deal.Seats[1].Hand.Contains(four));
 		Assert.Equal(two, round.LastPlayedCard);
 		Assert.Equal(RoundPhase.RunStopped, round.Phase);
 	}
@@ -116,7 +116,7 @@ public class MichiganRoundTests
 	{
 		Deal deal = CreateEmptyDeal();
 		Card openingCard = new Card(Suit.Hearts, Rank.Two);
-		deal.PlayerHands[0].AddCard(openingCard);
+		deal.Seats[0].Hand.AddCard(openingCard);
 		MichiganRound round = new MichiganRound(deal, 0);
 
 		Assert.True(round.TryPlay(0, openingCard));
@@ -130,8 +130,8 @@ public class MichiganRoundTests
 	{
 		Deal deal = CreateEmptyDeal();
 		Card openingCard = new Card(Suit.Hearts, Rank.Two);
-		deal.PlayerHands[0].AddCard(openingCard);
-		deal.PlayerHands[0].AddCard(new Card(Suit.Clubs, Rank.Two));
+		deal.Seats[0].Hand.AddCard(openingCard);
+		deal.Seats[0].Hand.AddCard(new Card(Suit.Clubs, Rank.Two));
 		MichiganRound round = new MichiganRound(deal, 0);
 
 		Assert.True(round.TryPlay(0, openingCard));
@@ -145,9 +145,9 @@ public class MichiganRoundTests
 	{
 		Deal deal = CreateEmptyDeal();
 		Card openingCard = new Card(Suit.Hearts, Rank.Two);
-		deal.PlayerHands[0].AddCard(openingCard);
-		deal.PlayerHands[0].AddCard(new Card(Suit.Hearts, Rank.King));
-		deal.PlayerHands[1].AddCard(new Card(Suit.Clubs, Rank.Two));
+		deal.Seats[0].Hand.AddCard(openingCard);
+		deal.Seats[0].Hand.AddCard(new Card(Suit.Hearts, Rank.King));
+		deal.Seats[1].Hand.AddCard(new Card(Suit.Clubs, Rank.Two));
 		MichiganRound round = new MichiganRound(deal, 0);
 
 		Assert.True(round.TryPlay(0, openingCard));
@@ -161,9 +161,9 @@ public class MichiganRoundTests
 	{
 		Deal deal = CreateEmptyDeal();
 		Card openingCard = new Card(Suit.Hearts, Rank.Two);
-		deal.PlayerHands[0].AddCard(openingCard);
-		deal.PlayerHands[0].AddCard(new Card(Suit.Hearts, Rank.King));
-		deal.PlayerHands[1].AddCard(new Card(Suit.Hearts, Rank.Five));
+		deal.Seats[0].Hand.AddCard(openingCard);
+		deal.Seats[0].Hand.AddCard(new Card(Suit.Hearts, Rank.King));
+		deal.Seats[1].Hand.AddCard(new Card(Suit.Hearts, Rank.Five));
 		MichiganRound round = new MichiganRound(deal, 0);
 
 		Assert.True(round.TryPlay(0, openingCard));
@@ -178,9 +178,9 @@ public class MichiganRoundTests
 		Deal deal = CreateEmptyDeal();
 		Card two = new Card(Suit.Hearts, Rank.Two);
 		Card three = new Card(Suit.Hearts, Rank.Three);
-		deal.PlayerHands[0].AddCard(two);
-		deal.PlayerHands[0].AddCard(new Card(Suit.Clubs, Rank.Two));
-		deal.PlayerHands[1].AddCard(three);
+		deal.Seats[0].Hand.AddCard(two);
+		deal.Seats[0].Hand.AddCard(new Card(Suit.Clubs, Rank.Two));
+		deal.Seats[1].Hand.AddCard(three);
 		MichiganRound round = new MichiganRound(deal, 0);
 
 		Assert.True(round.TryPlay(0, two));
@@ -200,11 +200,11 @@ public class MichiganRoundTests
 		Card lowestClub = new Card(Suit.Clubs, Rank.Two);
 		Card higherClub = new Card(Suit.Clubs, Rank.Three);
 		Card otherPlayerCard = new Card(Suit.Spades, Rank.Two);
-		deal.PlayerHands[0].AddCard(openingCard);
-		deal.PlayerHands[0].AddCard(sameSuitCard);
-		deal.PlayerHands[0].AddCard(lowestClub);
-		deal.PlayerHands[0].AddCard(higherClub);
-		deal.PlayerHands[1].AddCard(otherPlayerCard);
+		deal.Seats[0].Hand.AddCard(openingCard);
+		deal.Seats[0].Hand.AddCard(sameSuitCard);
+		deal.Seats[0].Hand.AddCard(lowestClub);
+		deal.Seats[0].Hand.AddCard(higherClub);
+		deal.Seats[1].Hand.AddCard(otherPlayerCard);
 		MichiganRound round = new MichiganRound(deal, 0);
 		round.TryPlay(0, openingCard);
 
@@ -213,7 +213,7 @@ public class MichiganRoundTests
 		Assert.False(round.TryPlay(0, higherClub));
 		Assert.Equal(RoundPhase.RunStopped, round.Phase);
 		Assert.Equal(openingCard, round.LastPlayedCard);
-		Assert.True(deal.PlayerHands[0].Contains(lowestClub));
+		Assert.True(deal.Seats[0].Hand.Contains(lowestClub));
 	}
 
 	[Fact]
@@ -222,10 +222,10 @@ public class MichiganRoundTests
 		Deal deal = CreateEmptyDeal();
 		Card heartsTwo = new Card(Suit.Hearts, Rank.Two);
 		Card clubsTwo = new Card(Suit.Clubs, Rank.Two);
-		deal.PlayerHands[0].AddCard(heartsTwo);
-		deal.PlayerHands[0].AddCard(new Card(Suit.Hearts, Rank.King));
-		deal.PlayerHands[0].AddCard(clubsTwo);
-		deal.PlayerHands[1].AddCard(new Card(Suit.Clubs, Rank.Three));
+		deal.Seats[0].Hand.AddCard(heartsTwo);
+		deal.Seats[0].Hand.AddCard(new Card(Suit.Hearts, Rank.King));
+		deal.Seats[0].Hand.AddCard(clubsTwo);
+		deal.Seats[1].Hand.AddCard(new Card(Suit.Clubs, Rank.Three));
 		MichiganRound round = new MichiganRound(deal, 0);
 		round.TryPlay(0, heartsTwo);
 
@@ -240,10 +240,10 @@ public class MichiganRoundTests
 	{
 		Deal deal = CreateEmptyDeal();
 		Card openingCard = new Card(Suit.Hearts, Rank.Two);
-		deal.PlayerHands[0].AddCard(openingCard);
-		deal.PlayerHands[0].AddCard(new Card(Suit.Clubs, Rank.Two));
+		deal.Seats[0].Hand.AddCard(openingCard);
+		deal.Seats[0].Hand.AddCard(new Card(Suit.Clubs, Rank.Two));
 		deal.Widow.AddCard(new Card(Suit.Hearts, Rank.Three));
-		deal.PlayerHands[1].AddCard(new Card(Suit.Clubs, Rank.Two));
+		deal.Seats[1].Hand.AddCard(new Card(Suit.Clubs, Rank.Two));
 		MichiganRound round = new MichiganRound(deal, 0);
 
 		Assert.True(round.TryPlay(0, openingCard));
@@ -257,7 +257,7 @@ public class MichiganRoundTests
 	{
 		Deal deal = CreateEmptyDeal();
 		Card openingCard = new Card(Suit.Hearts, Rank.Two);
-		deal.PlayerHands[0].AddCard(openingCard);
+		deal.Seats[0].Hand.AddCard(openingCard);
 		MichiganRound round = new MichiganRound(deal, 0);
 
 		Assert.True(round.TryPlay(0, openingCard));
@@ -268,9 +268,10 @@ public class MichiganRoundTests
 
 	private static Deal CreateEmptyDeal()
 	{
-		Deal deal = Deal.Create(new Deck(), 2);
+		Player[] players = [new Player(chipCount: 100, name: "Player 1"), new Player(chipCount: 100, name: "Player 2")];
+		Deal deal = Deal.Create(new Deck(), players);
 
-		foreach (Hand hand in deal.PlayerHands.Append(deal.Widow))
+		foreach (Hand hand in deal.Seats.Select(seat => seat.Hand).Append(deal.Widow))
 		{
 			foreach (Suit suit in Enum.GetValues<Suit>())
 			{

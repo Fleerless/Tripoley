@@ -15,6 +15,8 @@ public enum RoundPhase
 public class MichiganRound
 {
     private readonly Deal _deal;
+    private readonly IReadOnlyList<Hand> _hands;
+
     public int CurrentLeaderIndex { get; private set; }
     public Card? LastPlayedCard { get; private set; }
     public int? WinnerIndex { get; private set; }
@@ -24,24 +26,21 @@ public class MichiganRound
     {
         ArgumentNullException.ThrowIfNull(deal);
 
-        if (firstLeaderIndex < 0 || firstLeaderIndex >= deal.PlayerHands.Count)
+        if (firstLeaderIndex < 0 || firstLeaderIndex >= deal.Seats.Count)
         {
             throw new ArgumentOutOfRangeException(nameof(firstLeaderIndex));
         }
         _deal = deal;
+        _hands = [.. deal.Seats.Select(s => s.Hand)];
         CurrentLeaderIndex = firstLeaderIndex;
     }
     private void ValidatePlayerIndex(int playerIndex)
 {
-    if (playerIndex < 0 || playerIndex >= _deal.PlayerHands.Count)
+    if (playerIndex < 0 || playerIndex >= _deal.Seats.Count)
     {
         throw new ArgumentOutOfRangeException(nameof(playerIndex));
     }
 }
-    private Hand GetPlayerHand(int playerIndex)
-    {
-        return _deal.PlayerHands[playerIndex];
-    }
     private void AdvanceAfterPlay(int playerIndex, Card playedCard)
     {
         LastPlayedCard = playedCard;
@@ -53,14 +52,14 @@ public class MichiganRound
     }
     private void HandleRunStop(int playerIndex, Card lastPlayedCard)
     {
-        if (RunEngine.IsRunStopped(lastPlayedCard, _deal.PlayerHands))
+        if (RunEngine.IsRunStopped(lastPlayedCard, _hands))
         {
-            if (RunEngine.CanLeadAfterStop(GetPlayerHand(playerIndex), lastPlayedCard.Suit))
+            if (RunEngine.CanLeadAfterStop(_hands[playerIndex], lastPlayedCard.Suit))
             {
                 CurrentLeaderIndex = playerIndex;
                 Phase = RoundPhase.RunStopped;
             }
-            else if (RunEngine.FindNextLeaderIndex(_deal.PlayerHands, playerIndex, lastPlayedCard.Suit, out int nextLeaderIndex))
+            else if (RunEngine.FindNextLeaderIndex(_hands, playerIndex, lastPlayedCard.Suit, out int nextLeaderIndex))
             {
                 CurrentLeaderIndex = nextLeaderIndex;
                 Phase = RoundPhase.RunStopped;
@@ -77,7 +76,7 @@ public class MichiganRound
     }
     private bool CompleteIfHandEmpty(int playerIndex)
     {
-        Hand hand = GetPlayerHand(playerIndex);
+        Hand hand = _hands[playerIndex];
         if (hand.CardsRemaining <= 0)
         {
             Phase = RoundPhase.RoundComplete;
@@ -88,7 +87,7 @@ public class MichiganRound
     }
     private bool TryLeadOpeningCard(int playerIndex, Card cardToLead)
     {
-        Hand hand = GetPlayerHand(playerIndex);
+        Hand hand = _hands[playerIndex];
 
         if (
             playerIndex != CurrentLeaderIndex ||
@@ -106,7 +105,7 @@ public class MichiganRound
     }
     private bool TryPlayNextCard(int playerIndex, Card cardToPlay)
     {
-        Hand hand = GetPlayerHand(playerIndex);
+        Hand hand = _hands[playerIndex];
         
         if (
             LastPlayedCard is null ||
@@ -124,7 +123,7 @@ public class MichiganRound
     }
     private bool TryLeadCardAfterStop(int playerIndex, Card cardToLead)
     {
-        Hand hand = GetPlayerHand(playerIndex);
+        Hand hand = _hands[playerIndex];
         
         if (
             playerIndex != CurrentLeaderIndex ||
