@@ -41,4 +41,16 @@ public class ChipPools
             pool.AddChips(AnteAmount);
         } 
     }
+    public void ClaimChips(ChipPoolType type, Player player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        ChipPool pool = Get(type);
+        int chips = pool.ChipCount;
+        if (chips > 0)
+        {
+            pool.RemoveChips(chips);
+            player.AddChips(chips);
+        }
+    }
 }
