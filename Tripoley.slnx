@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="Tripoley.Api.Tests/Tripoley.Api.Tests.csproj" />
+  <Project Path="Tripoley.Api/Tripoley.Api.csproj" />
   <Project Path="Tripoley.Engine.Tests/Tripoley.Engine.Tests.csproj" />
   <Project Path="Tripoley.Engine/Tripoley.Engine.csproj" />
 </Solution>
