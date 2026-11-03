@@ -140,6 +140,41 @@ public class RoomTests
         Assert.False(room.StartGame());
     }
 
+    [Fact]
+    public void TryPlayCard_WhenStillInLobby_ReturnsFalse()
+    {
+        Room room = new("ABCD");
+        room.AddMember("conn-1", "Jeff");
+
+        Assert.False(room.TryPlayCard("conn-1", new Card(Suit.Hearts, Rank.Two)));
+    }
+
+    [Fact]
+    public void TryPlayCard_FromAnUnknownConnection_ReturnsFalse()
+    {
+        Room room = CreateStartedRoom();
+
+        Assert.False(room.TryPlayCard("conn-unknown", new Card(Suit.Hearts, Rank.Two)));
+    }
+
+    [Fact]
+    public void TryPlayCard_WhenTheLeaderPlaysALegalOpeningCard_ReturnsTrue()
+    {
+        Room room = CreateStartedRoom();
+        Game game = room.Game!;
+
+        int leaderIndex = game.CurrentMichiganRound!.CurrentLeaderIndex;
+        Seat leaderSeat = game.CurrentDeal!.Seats[leaderIndex];
+
+        // A legal opening lead is the lowest card of any suit the leader holds; ordering by
+        // suit then rank yields exactly such a card whatever the (random) deal produced.
+        Card legalLead = leaderSeat.Hand.Cards.OrderBy(card => card.Suit).ThenBy(card => card.Rank).First();
+        string leaderConnection = room.Members()
+            .First(member => member.Player.Id == leaderSeat.Player.Id).ConnectionId;
+
+        Assert.True(room.TryPlayCard(leaderConnection, legalLead));
+    }
+
     private static Room CreateStartedRoom()
     {
         Room room = new("ABCD");
