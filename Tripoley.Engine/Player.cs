@@ -5,7 +5,6 @@ public class Player
     public int ChipCount { get; private set; }
     public Guid Id { get; }
     public string Name { get; }
-    public bool IsReady { get; set; }
     public Player(int chipCount, string name)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(chipCount);
