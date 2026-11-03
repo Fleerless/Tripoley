@@ -55,6 +55,7 @@ public sealed class Room(string code)
 
             Game = new Game(_members.Select(member => member.Player));
             Game.StartNewDeal();
+            // Will need to be changed when Hearts/Poker rounds are implemented
             Game.StartMichiganRound();
             State = RoomState.InProgress;
             return true;
@@ -66,6 +67,38 @@ public sealed class Room(string code)
         lock (_lock)
         {
             return _members.FirstOrDefault(member => member.ConnectionId == connectionId);
+        }
+    }
+    public IReadOnlyList<RoomMember> Members()
+    {
+        lock (_lock)
+        {
+            return _members.ToList();
+        }
+    }
+
+    public bool TryPlayCard(string connectionId, Card card)
+    {
+        lock (_lock)
+        {
+            if (State != RoomState.InProgress || Game?.CurrentDeal is null) return false;
+
+            var member = _members.FirstOrDefault(member => member.ConnectionId == connectionId);
+            if (member is null) return false;
+
+            var seats = Game.CurrentDeal.Seats;
+            int seatIndex = -1;
+            for (int index = 0; index < seats.Count; index++)
+            {
+                if (seats[index].Player.Id == member.Player.Id)
+                {
+                    seatIndex = index;
+                    break;
+                }
+            }
+            if (seatIndex < 0) return false;
+
+            return Game.TryPlayCard(seatIndex, card);
         }
     }
 }
