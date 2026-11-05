@@ -1,3 +1,5 @@
+using Tripoley.Api.Contracts;
+using Tripoley.Api.Projections;
 using Tripoley.Api.Rooms;
 using Tripoley.Engine;
 
@@ -175,6 +177,91 @@ public class RoomTests
         Assert.True(room.TryPlayCard(leaderConnection, legalLead));
     }
 
+    [Fact]
+    public void AdvanceToNextDeal_WhenStillInLobby_ReturnsFalse()
+    {
+        Room room = new("ABCD");
+        room.AddMember("conn-1", "Jeff");
+
+        Assert.False(room.AdvanceToNextDeal());
+        Assert.Equal(RoomState.Lobby, room.State);
+    }
+
+    [Fact]
+    public void AdvanceToNextDeal_MidRound_ReturnsFalseAndLeavesTheRoundRunning()
+    {
+        Room room = CreateStartedRoom();
+
+        bool advanced = room.AdvanceToNextDeal();
+
+        Assert.False(advanced);
+        Assert.Equal(RoomState.InProgress, room.State);
+        Assert.Equal(GamePhase.MichiganRummyInProgress, room.Game!.GamePhase);
+    }
+
+    [Fact]
+    public void AdvanceToNextDeal_AfterARoundSettles_StartsAFreshRound()
+    {
+        Room room = CreateStartedRoom();
+        PlayOutRound(room);
+        Assert.Equal(GamePhase.WaitingForDeal, room.Game!.GamePhase);
+
+        bool advanced = room.AdvanceToNextDeal();
+
+        Assert.True(advanced);
+        Assert.Equal(RoomState.InProgress, room.State);
+        Assert.Equal(GamePhase.MichiganRummyInProgress, room.Game.GamePhase);
+        Assert.Null(room.Game.CurrentMichiganRound!.WinnerIndex);
+    }
+
+    [Fact]
+    public void PlayingAFullGame_EndsCompletedWithACleanFinalProjection()
+    {
+        Room room = CreateStartedRoom();
+
+        int safety = 0;
+        while (room.State == RoomState.InProgress && safety++ < 100)
+        {
+            PlayOutRound(room);
+            room.AdvanceToNextDeal();
+        }
+
+        Assert.Equal(RoomState.Completed, room.State);
+        Assert.Equal(GamePhase.GameComplete, room.Game!.GamePhase);
+        Assert.NotNull(room.Game.CurrentMichiganRound);
+
+        GameStateView view = GameStateProjector.ToGameStateView(room.Game);
+        Assert.Equal(GamePhase.GameComplete, view.Phase);
+        Assert.Empty(view.Seats);
+        Assert.Null(view.CurrentLeaderIndex);
+        Assert.Null(view.LastPlayedCard);
+        Assert.Null(view.WinnerIndex);
+    }
+
+    [Fact]
+    public void NoWinnerRound_OnlyHappensWhenEveryHandHoldsOnlyTheStoppedSuit()
+    {
+        for (int gameNo = 0; gameNo < 40; gameNo++)
+        {
+            Room room = CreateStartedRoom();
+            while (room.State == RoomState.InProgress)
+            {
+                Game g = room.Game!;
+                PlayOutRound(room);
+                MichiganRound round = g.CurrentMichiganRound!;
+                if (round.WinnerIndex is null && g.CurrentDeal is { } deal && round.LastPlayedCard is { } last)
+                {
+                    foreach (Seat seat in deal.Seats)
+                        Assert.True(
+                            seat.Hand.Cards.All(c => c.Suit == last.Suit),
+                            $"Draw while a seat still holds a non-{last.Suit} card: "
+                                + string.Join(",", seat.Hand.Cards.Select(c => $"{c.Rank}{c.Suit}")));
+                }
+                room.AdvanceToNextDeal();
+            }
+        }
+    }
+
     private static Room CreateStartedRoom()
     {
         Room room = new("ABCD");
@@ -189,4 +276,37 @@ public class RoomTests
         room.AddMember(connectionId, name);
         room.SetReady(connectionId, true);
     }
+
+    private static void PlayOutRound(Room room)
+    {
+        Game game = room.Game!;
+        while (game.GamePhase == GamePhase.MichiganRummyInProgress)
+        {
+            (string connectionId, Card card) = NextLegalMove(room, game);
+            Assert.True(room.TryPlayCard(connectionId, card));
+        }
+    }
+
+    private static (string ConnectionId, Card Card) NextLegalMove(Room room, Game game)
+    {
+        MichiganRound round = game.CurrentMichiganRound!;
+        IReadOnlyList<Seat> seats = game.CurrentDeal!.Seats;
+
+        if (round.Phase == RoundPhase.RunInProgress && round.LastPlayedCard is { } last && last.Rank != Rank.Ace)
+        {
+            Card next = new(last.Suit, last.Rank + 1);
+            Seat holder = seats.First(seat => seat.Hand.Cards.Contains(next));
+            return (ConnectionOf(room, holder), next);
+        }
+
+        Seat leader = seats[round.CurrentLeaderIndex];
+        IEnumerable<Card> candidates = round.Phase == RoundPhase.RunStopped && round.LastPlayedCard is { } stop
+            ? leader.Hand.Cards.Where(card => card.Suit != stop.Suit)
+            : leader.Hand.Cards;
+        Card lead = candidates.OrderBy(card => card.Suit).ThenBy(card => card.Rank).First();
+        return (ConnectionOf(room, leader), lead);
+    }
+
+    private static string ConnectionOf(Room room, Seat seat) =>
+        room.Members().First(member => member.Player.Id == seat.Player.Id).ConnectionId;
 }

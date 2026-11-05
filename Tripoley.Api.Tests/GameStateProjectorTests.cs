@@ -61,6 +61,22 @@ public class GameStateProjectorTests
         Assert.Empty(self.Hand);
     }
 
+    [Fact]
+    public void ToGameStateView_WhenGameComplete_ReportsNoActiveRoundOrSeats()
+    {
+        Game game = new([new Player(100, "Jeff"), new Player(5, "Broke Betty")]);
+        game.StartNewDeal();
+        Assert.Equal(GamePhase.GameComplete, game.GamePhase);
+
+        GameStateView view = GameStateProjector.ToGameStateView(game);
+
+        Assert.Equal(GamePhase.GameComplete, view.Phase);
+        Assert.Empty(view.Seats);
+        Assert.Null(view.CurrentLeaderIndex);
+        Assert.Null(view.LastPlayedCard);
+        Assert.Null(view.WinnerIndex);
+    }
+
     private static Game StartedGame(out Player[] players)
     {
         players = [new Player(100, "Jeff"), new Player(100, "Ann")];
