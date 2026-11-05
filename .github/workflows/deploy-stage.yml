@@ -1,0 +1,12 @@
+# Staging deploy: fires when develop is merged into stage.
+name: deploy-stage
+
+on:
+  push:
+    branches: [stage]
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: stage

@@ -1,0 +1,92 @@
+# Reusable deploy pipeline, called by deploy-stage.yml and deploy-production.yml.
+# Deploys both halves of the app for one environment:
+#   - API:    build the Docker image, push to ECR. App Runner is configured to
+#             auto-deploy when its tracked image tag (the environment name) updates.
+#   - Client: build tripoley-web against the env's hub URL, sync to S3, invalidate CDN.
+#
+# Auth is via GitHub OIDC -> an IAM role (no long-lived AWS keys stored in GitHub).
+#
+# Each GitHub Environment (stage, production) must define these *variables* (Settings
+# -> Environments -> <env> -> Variables). None are secret:
+#   AWS_REGION                  e.g. us-east-2
+#   AWS_DEPLOY_ROLE_ARN         arn of the OIDC deploy role
+#   ECR_REPOSITORY              e.g. tripoley-api
+#   VITE_HUB_URL                e.g. https://<apprunner-id>.us-east-2.awsapprunner.com/hubs/gamehub
+#   S3_BUCKET                   e.g. tripoley.jeffreyfleer.com  (or stage.tripoley.jeffreyfleer.com)
+#   CLOUDFRONT_DISTRIBUTION_ID  the env's CloudFront distribution id
+
+name: deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub Environment to deploy (stage or production)
+        required: true
+        type: string
+
+# Never run two deploys for the same environment at once.
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      id-token: write # required for AWS OIDC
+      contents: read
+    env:
+      IMAGE_TAG: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # ---- API image ----
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          docker build \
+            -t "$REGISTRY/$REPOSITORY:$IMAGE_TAG" \
+            -t "$REGISTRY/$REPOSITORY:${{ github.sha }}" \
+            .
+          docker push "$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+          docker push "$REGISTRY/$REPOSITORY:${{ github.sha }}"
+          # App Runner (AutoDeploymentsEnabled) redeploys off the :$IMAGE_TAG push.
+
+      # ---- Web client ----
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tripoley-web/package-lock.json
+
+      - name: Build web client
+        working-directory: tripoley-web
+        env:
+          VITE_HUB_URL: ${{ vars.VITE_HUB_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Sync client to S3
+        run: aws s3 sync tripoley-web/dist "s3://${{ vars.S3_BUCKET }}" --delete
+
+      - name: Invalidate CloudFront
+        run: >-
+          aws cloudfront create-invalidation
+          --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}"
+          --paths "/*"
