@@ -105,6 +105,18 @@ public class GameTests
         Assert.Equal(0, TotalPoolChips(game));
     }
     [Fact]
+    public void StartNewDeal_WhenOnlyOnePlayerCanAnte_EndsWithNoWinnerAndNoPayout()
+    {
+        Player[] players = [new Player(chipCount: 100, name: "Jeff"), new Player(chipCount: 5, name: "Ann")];
+        Game game = new Game(players);
+
+        game.StartNewDeal();
+
+        Assert.Equal(GamePhase.GameComplete, game.GamePhase);
+        Assert.Null(game.CurrentMichiganRound);
+        Assert.Equal(100, players[0].ChipCount);
+    }
+    [Fact]
     public void StartNewDeal_WhenNotWaitingForDeal_DoesNothing()
     {
         Player[] players = CreatePlayers(2);
