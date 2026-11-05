@@ -1,0 +1,310 @@
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Monoton&family=Pacifico&display=swap");
+
+:root {
+  --navy: #0b2033;
+  --pink: #ff5d8f;
+  --amber: #ffb15c;
+  --brass: #d9b36b;
+  --brass-lt: #f0d9a0;
+  --cream: #efe6cf;
+  --red: #d6475a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: #e9e2d2;
+  font-family: "Orbitron", system-ui, sans-serif;
+  background:
+    url("/lounge-bg.png") center / cover no-repeat fixed,
+    #0a0a14;
+  overflow-x: hidden;
+}
+
+/* scrim over the scene so the game reads clearly */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 95% 85% at 50% 45%,
+    rgba(6, 8, 16, 0.22),
+    rgba(4, 5, 12, 0.72)
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+/* vignette */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  box-shadow: inset 0 0 300px rgba(0, 0, 0, 0.6);
+}
+
+/* neon lounge sign */
+.sign {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: "Pacifico", cursive;
+  font-size: 50px;
+  color: #ffdbe6;
+  text-shadow:
+    0 0 10px var(--pink),
+    0 0 24px var(--pink),
+    0 0 44px rgba(255, 93, 143, 0.55);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.95;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+.app {
+  position: relative;
+  z-index: 1;
+  padding: 16px 24px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Monoton", cursive;
+  font-weight: 400;
+  color: var(--pink);
+  text-shadow:
+    0 0 10px rgba(255, 93, 143, 0.7),
+    0 0 24px rgba(255, 93, 143, 0.4);
+  letter-spacing: 2px;
+}
+
+button {
+  font-family: "Orbitron", sans-serif;
+  font-weight: 700;
+  background: linear-gradient(160deg, #1b3147, #0d2032);
+  color: var(--brass-lt);
+  border: 1px solid var(--brass);
+  border-radius: 8px;
+  padding: 9px 16px;
+  margin: 2px;
+  cursor: pointer;
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+button:hover {
+  border-color: var(--brass-lt);
+  box-shadow: 0 0 16px rgba(217, 179, 107, 0.5);
+}
+
+input {
+  font-family: "Orbitron", sans-serif;
+  background: #0d2032;
+  color: #eef;
+  border: 1px solid var(--brass);
+  border-radius: 8px;
+  padding: 8px 11px;
+  margin: 0 4px;
+}
+
+.mat {
+  position: relative;
+  width: 1200px;
+  max-width: 96vw;
+  height: 760px;
+  margin: 24px auto;
+  background: radial-gradient(
+    ellipse 56% 60% at 50% 48%,
+    rgba(0, 0, 0, 0.45),
+    transparent 72%
+  );
+}
+
+.board {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  filter: drop-shadow(0 16px 30px rgba(0, 0, 0, 0.7));
+}
+
+.statusbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 3vh;
+  z-index: 6;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #c7bfe0;
+  text-align: center;
+  background: linear-gradient(to top, rgba(6, 8, 16, 0.85), rgba(6, 8, 16, 0));
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+.status-win {
+  color: var(--amber);
+  font-weight: 800;
+}
+.status-err {
+  color: #ff6b6b;
+}
+.center-pile {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+}
+
+.seat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 2;
+}
+.nameplate {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #332842, #221a2e);
+  border: 1px solid var(--brass);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.seat.active .nameplate {
+  border-color: var(--amber);
+  box-shadow:
+    0 0 22px rgba(255, 177, 92, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.seat-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--brass-lt);
+  letter-spacing: 1px;
+}
+.seat.active .seat-name {
+  color: var(--amber);
+}
+.seat-chips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--cream);
+}
+.chip-stack {
+  display: inline-flex;
+}
+.chip-disc {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px dashed var(--cream);
+  background: radial-gradient(circle at 40% 35%, var(--pink), #b5325a);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.chip-disc + .chip-disc {
+  margin-left: -8px;
+}
+.seat-meta {
+  opacity: 0.6;
+}
+
+.seat-cards {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+.seat-cards .card + .card {
+  margin-left: -26px;
+}
+.seat-cards.backs .card + .card {
+  margin-left: -44px;
+}
+
+.card {
+  position: relative;
+  width: 50px;
+  height: 70px;
+  border-radius: 7px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  user-select: none;
+}
+.card-face {
+  background: linear-gradient(160deg, #fdf7ec, #efe4cf);
+  color: #1a1526;
+  border: 1px solid #c9b48a;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55);
+}
+.card-face.red {
+  color: var(--red);
+}
+.card-back {
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(217, 179, 107, 0.4) 0 7px,
+      transparent 8px
+    ),
+    repeating-linear-gradient(45deg, #13314a 0 5px, #0d2335 5px 10px);
+  border: 1px solid var(--brass);
+  box-shadow:
+    inset 0 0 0 3px rgba(217, 179, 107, 0.4),
+    0 3px 8px rgba(0, 0, 0, 0.55);
+}
+.card-playable {
+  cursor: pointer;
+  border-color: var(--amber);
+  box-shadow:
+    0 0 18px rgba(255, 177, 92, 0.9),
+    0 3px 8px rgba(0, 0, 0, 0.55);
+}
+.card-playable:hover {
+  box-shadow: 0 0 28px var(--amber);
+}
+.card-index {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.9;
+  font-weight: 800;
+  z-index: 1;
+}
+.card-rank {
+  font-size: 14px;
+}
+.card-suit {
+  font-size: 12px;
+}
+.card-pip {
+  font-size: 28px;
+  opacity: 0.8;
+}
