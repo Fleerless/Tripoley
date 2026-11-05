@@ -1,0 +1,20 @@
+# Build artifacts
+**/bin/
+**/obj/
+TestResults/
+
+# VCS / tooling
+.git/
+.github/
+.vs/
+.vscode/
+.claude/
+
+# Not part of the API image
+tripoley-web/
+Tripoley.Engine.Tests/
+Tripoley.Api.Tests/
+
+# Docs / misc
+*.md
+**/.DS_Store
