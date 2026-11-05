@@ -9,4 +9,5 @@ public static class ClientEvents
     public const string LobbyUpdated = "LobbyUpdated";
     public const string GameStateUpdated = "GameStateUpdated";
     public const string HandUpdated = "HandUpdated";
+    public const string OpenRoomsUpdated = "OpenRoomsUpdated";
 }

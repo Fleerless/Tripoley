@@ -27,6 +27,10 @@ public sealed class InMemoryRoomRegistry : IRoomRegistry
     {
         return _rooms.Values.FirstOrDefault(room => room.FindMember(connectionId) is not null);
     }
+    public IReadOnlyList<Room> OpenRooms()
+    {
+        return _rooms.Values.Where(room => room.State == RoomState.Lobby).ToList();
+    }
     public void Remove(string code)
     {
         _rooms.TryRemove(code, out _);

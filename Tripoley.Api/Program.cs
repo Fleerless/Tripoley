@@ -1,10 +1,13 @@
+using System.Text.Json.Serialization;
 using Tripoley.Api.Hubs;
 using Tripoley.Api.Rooms;
 
 const string ClientCorsPolicy = "client";
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddSignalR();
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options =>
+        options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddSingleton<IRoomRegistry, InMemoryRoomRegistry>();
 
 string[] allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()

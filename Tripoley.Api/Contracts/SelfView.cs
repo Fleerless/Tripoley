@@ -1,5 +1,7 @@
 namespace Tripoley.Api.Contracts;
 
 public sealed record SelfView(
-    IReadOnlyList<CardDto> Hand
+    int? SeatIndex,
+    IReadOnlyList<CardDto> Hand,
+    IReadOnlyList<CardDto> LegalPlays
 );

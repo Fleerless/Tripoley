@@ -7,6 +7,7 @@ public sealed class Room(string code)
     public string Code { get; } = code;
     public RoomState State { get; private set; } = RoomState.Lobby;
     public Game? Game { get; private set; }
+    public string? LastRoundWinner { get; private set; }
 
     private readonly List<RoomMember> _members = [];
     private readonly object _lock = new();
@@ -99,6 +100,30 @@ public sealed class Room(string code)
             if (seatIndex < 0) return false;
 
             return Game.TryPlayCard(seatIndex, card);
+        }
+    }
+
+    public bool AdvanceToNextDeal()
+    {
+        lock (_lock)
+        {
+            if (State != RoomState.InProgress || Game is null) return false;
+            if (Game.GamePhase != GamePhase.WaitingForDeal) return false;
+
+            LastRoundWinner = Game.CurrentMichiganRound?.WinnerIndex is int winner && Game.CurrentDeal is { } finishedDeal
+                ? finishedDeal.Seats[winner].Player.Name
+                : "Draw";
+
+            Game.StartNewDeal();
+            if (Game.GamePhase == GamePhase.GameComplete)
+            {
+                State = RoomState.Completed;
+                return true;
+            }
+
+            // We will need to change the starting round when new game phases are added
+            Game.StartMichiganRound();
+            return true;
         }
     }
 }
