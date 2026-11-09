@@ -5,6 +5,13 @@ on:
   push:
     branches: [stage]
 
+# A caller must grant the permissions its reusable workflow requests; without
+# this the OIDC id-token request exceeds the caller's token and the run fails
+# to start.
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy:
     uses: ./.github/workflows/deploy.yml
