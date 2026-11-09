@@ -1,19 +1,22 @@
-# Reusable deploy pipeline, called by deploy-stage.yml and deploy-production.yml.
+# Reusable deploy pipeline, called by deploy-production.yml.
 # Deploys both halves of the app for one environment:
 #   - API:    build the Docker image, push to ECR (tagged with the commit SHA),
 #             then ship it to Elastic Beanstalk as a new application version.
 #   - Client: build tripoley-web against the env's hub URL, sync to S3, invalidate CDN.
 #
+# The deployed version (for /version and the client) comes from
+# .release-please-manifest.json, so it tracks the release-please release.
+#
 # Auth is via GitHub OIDC -> an IAM role (no long-lived AWS keys stored in GitHub).
 #
-# Each GitHub Environment (stage, production) must define these *variables* (Settings
-# -> Environments -> <env> -> Variables). None are secret:
+# The production GitHub Environment must define these *variables* (Settings
+# -> Environments -> production -> Variables). None are secret:
 #   AWS_REGION                  us-west-2
 #   AWS_DEPLOY_ROLE_ARN         arn of the OIDC deploy role
 #   ECR_REPOSITORY              tripoley-api
-#   EB_ENVIRONMENT_NAME         tripoley-api-stage  (or tripoley-api-production)
-#   VITE_HUB_URL                https://api[.stage].tripoley.jeffreyfleer.com/hubs/gamehub
-#   S3_BUCKET                   tripoley.jeffreyfleer.com  (or stage.tripoley.jeffreyfleer.com)
+#   EB_ENVIRONMENT_NAME         tripoley-api-production
+#   VITE_HUB_URL                https://api.tripoley.jeffreyfleer.com/hubs/gamehub
+#   S3_BUCKET                   tripoley.jeffreyfleer.com
 #   CLOUDFRONT_DISTRIBUTION_ID  the env's client CloudFront distribution id
 
 name: deploy
@@ -22,7 +25,7 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: GitHub Environment to deploy (stage or production)
+        description: GitHub Environment to deploy (production)
         required: true
         type: string
 
@@ -43,6 +46,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Read app version
+        id: version
+        run: echo "value=$(jq -r '."."' .release-please-manifest.json)" >> "$GITHUB_OUTPUT"
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -61,7 +68,8 @@ jobs:
           REPOSITORY: ${{ vars.ECR_REPOSITORY }}
         run: |
           IMAGE="$REGISTRY/$REPOSITORY:${{ github.sha }}"
-          docker build -t "$IMAGE" -t "$REGISTRY/$REPOSITORY:${{ inputs.environment }}" .
+          docker build --build-arg APP_VERSION="${{ steps.version.outputs.value }}" \
+            -t "$IMAGE" -t "$REGISTRY/$REPOSITORY:${{ inputs.environment }}" .
           docker push "$IMAGE"
           docker push "$REGISTRY/$REPOSITORY:${{ inputs.environment }}"
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
@@ -109,6 +117,7 @@ jobs:
         working-directory: tripoley-web
         env:
           VITE_HUB_URL: ${{ vars.VITE_HUB_URL }}
+          VITE_APP_VERSION: ${{ steps.version.outputs.value }}
         run: |
           npm ci
           npm run build
