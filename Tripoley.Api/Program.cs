@@ -24,7 +24,10 @@ var app = builder.Build();
 
 app.UseCors(ClientCorsPolicy);
 
+var appVersion = app.Configuration["APP_VERSION"] ?? "dev";
+
 app.MapGet("/", () => "Tripoley API is healthy.");
+app.MapGet("/version", () => appVersion);
 app.MapHub<GameHub>("/hubs/gamehub");
 
 app.Run();

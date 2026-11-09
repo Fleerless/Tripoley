@@ -20,10 +20,13 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=build /app .
 
-# App Runner forwards requests to this port; be explicit rather than
+# Elastic Beanstalk forwards requests to this port; be explicit rather than
 # relying on the base image default.
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
+
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 
 # Run as the non-root user baked into the aspnet image.
 USER $APP_UID
