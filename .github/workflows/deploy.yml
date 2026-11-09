@@ -1,19 +1,20 @@
 # Reusable deploy pipeline, called by deploy-stage.yml and deploy-production.yml.
 # Deploys both halves of the app for one environment:
-#   - API:    build the Docker image, push to ECR. App Runner is configured to
-#             auto-deploy when its tracked image tag (the environment name) updates.
+#   - API:    build the Docker image, push to ECR (tagged with the commit SHA),
+#             then ship it to Elastic Beanstalk as a new application version.
 #   - Client: build tripoley-web against the env's hub URL, sync to S3, invalidate CDN.
 #
 # Auth is via GitHub OIDC -> an IAM role (no long-lived AWS keys stored in GitHub).
 #
 # Each GitHub Environment (stage, production) must define these *variables* (Settings
 # -> Environments -> <env> -> Variables). None are secret:
-#   AWS_REGION                  e.g. us-east-2
+#   AWS_REGION                  us-west-2
 #   AWS_DEPLOY_ROLE_ARN         arn of the OIDC deploy role
-#   ECR_REPOSITORY              e.g. tripoley-api
-#   VITE_HUB_URL                e.g. https://<apprunner-id>.us-east-2.awsapprunner.com/hubs/gamehub
-#   S3_BUCKET                   e.g. tripoley.jeffreyfleer.com  (or stage.tripoley.jeffreyfleer.com)
-#   CLOUDFRONT_DISTRIBUTION_ID  the env's CloudFront distribution id
+#   ECR_REPOSITORY              tripoley-api
+#   EB_ENVIRONMENT_NAME         tripoley-api-stage  (or tripoley-api-production)
+#   VITE_HUB_URL                https://api[.stage].tripoley.jeffreyfleer.com/hubs/gamehub
+#   S3_BUCKET                   tripoley.jeffreyfleer.com  (or stage.tripoley.jeffreyfleer.com)
+#   CLOUDFRONT_DISTRIBUTION_ID  the env's client CloudFront distribution id
 
 name: deploy
 
@@ -38,7 +39,7 @@ jobs:
       id-token: write # required for AWS OIDC
       contents: read
     env:
-      IMAGE_TAG: ${{ inputs.environment }}
+      EB_APPLICATION: tripoley-api
     steps:
       - uses: actions/checkout@v4
 
@@ -48,23 +49,53 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      # ---- API image ----
+      # ---- API image -> ECR ----
       - name: Log in to Amazon ECR
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and push API image
+        id: image
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           REPOSITORY: ${{ vars.ECR_REPOSITORY }}
         run: |
-          docker build \
-            -t "$REGISTRY/$REPOSITORY:$IMAGE_TAG" \
-            -t "$REGISTRY/$REPOSITORY:${{ github.sha }}" \
-            .
-          docker push "$REGISTRY/$REPOSITORY:$IMAGE_TAG"
-          docker push "$REGISTRY/$REPOSITORY:${{ github.sha }}"
-          # App Runner (AutoDeploymentsEnabled) redeploys off the :$IMAGE_TAG push.
+          IMAGE="$REGISTRY/$REPOSITORY:${{ github.sha }}"
+          docker build -t "$IMAGE" -t "$REGISTRY/$REPOSITORY:${{ inputs.environment }}" .
+          docker push "$IMAGE"
+          docker push "$REGISTRY/$REPOSITORY:${{ inputs.environment }}"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      # ---- Ship the image to Elastic Beanstalk ----
+      - name: Deploy to Elastic Beanstalk
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          EB_BUCKET="elasticbeanstalk-${{ vars.AWS_REGION }}-${ACCOUNT_ID}"
+          VERSION_LABEL="${{ inputs.environment }}-${{ github.sha }}"
+
+          # Bundle only a Dockerrun that points EB at the freshly pushed image.
+          printf '{"AWSEBDockerrunVersion":"1","Image":{"Name":"%s","Update":"true"},"Ports":[{"ContainerPort":8080}]}\n' \
+            "$IMAGE" > Dockerrun.aws.json
+          zip -q "${VERSION_LABEL}.zip" Dockerrun.aws.json
+
+          aws s3 cp "${VERSION_LABEL}.zip" "s3://${EB_BUCKET}/${EB_APPLICATION}/${VERSION_LABEL}.zip"
+
+          aws elasticbeanstalk create-application-version \
+            --application-name "$EB_APPLICATION" \
+            --version-label "$VERSION_LABEL" \
+            --source-bundle "S3Bucket=${EB_BUCKET},S3Key=${EB_APPLICATION}/${VERSION_LABEL}.zip" \
+            --no-process
+
+          aws elasticbeanstalk update-environment \
+            --environment-name "${{ vars.EB_ENVIRONMENT_NAME }}" \
+            --version-label "$VERSION_LABEL"
+
+          # Block until the environment finishes updating and reports Ready.
+          aws elasticbeanstalk wait environment-updated \
+            --environment-names "${{ vars.EB_ENVIRONMENT_NAME }}"
 
       # ---- Web client ----
       - name: Setup Node
