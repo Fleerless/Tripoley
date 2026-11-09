@@ -24,7 +24,7 @@ var app = builder.Build();
 
 app.UseCors(ClientCorsPolicy);
 
-app.MapGet("/", () => "Hello World, I am healthy!");
+app.MapGet("/", () => "Tripoley API is healthy.");
 app.MapHub<GameHub>("/hubs/gamehub");
 
 app.Run();
