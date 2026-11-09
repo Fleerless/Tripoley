@@ -1,0 +1,23 @@
+# Automated releases from Conventional Commits.
+# On every push to develop, release-please reads the commit history and keeps a
+# "Release PR" open that bumps the version in .release-please-manifest.json and
+# updates CHANGELOG.md. Merging that PR creates the git tag (vX.Y.Z) and the
+# GitHub Release. The version is then shipped by promoting develop -> production.
+name: release-please
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
