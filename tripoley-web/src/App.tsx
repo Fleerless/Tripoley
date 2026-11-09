@@ -143,9 +143,10 @@ export default function App() {
           </span>
         )}
         {game.error && <span className="status-err">error: {game.error}</span>}
+        <span className="status-version">
+          v{(import.meta.env.VITE_APP_VERSION as string | undefined) ?? "dev"}
+        </span>
       </div>
     </div>
   );
 }
-
-// Test Test Test Test Test Test Test Test Test Test Test Test Test Test Test
