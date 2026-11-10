@@ -123,7 +123,7 @@ input {
   width: 1200px;
   max-width: 96vw;
   height: 760px;
-  margin: 24px auto;
+  margin: 96px auto 24px;
   background: radial-gradient(
     ellipse 56% 60% at 50% 48%,
     rgba(0, 0, 0, 0.45),
