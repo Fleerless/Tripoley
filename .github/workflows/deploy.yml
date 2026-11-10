@@ -84,18 +84,23 @@ jobs:
           EB_BUCKET="elasticbeanstalk-${{ vars.AWS_REGION }}-${ACCOUNT_ID}"
           VERSION_LABEL="${{ inputs.environment }}-${{ github.sha }}"
 
-          # Bundle only a Dockerrun that points EB at the freshly pushed image.
-          printf '{"AWSEBDockerrunVersion":"1","Image":{"Name":"%s","Update":"true"},"Ports":[{"ContainerPort":8080}]}\n' \
-            "$IMAGE" > Dockerrun.aws.json
-          zip -q "${VERSION_LABEL}.zip" Dockerrun.aws.json
-
-          aws s3 cp "${VERSION_LABEL}.zip" "s3://${EB_BUCKET}/${EB_APPLICATION}/${VERSION_LABEL}.zip"
-
-          aws elasticbeanstalk create-application-version \
-            --application-name "$EB_APPLICATION" \
-            --version-label "$VERSION_LABEL" \
-            --source-bundle "S3Bucket=${EB_BUCKET},S3Key=${EB_APPLICATION}/${VERSION_LABEL}.zip" \
-            --no-process
+          # The version label is tied to the commit SHA, so it is created once per
+          # commit. Only create it if it does not already exist, so re-running a
+          # failed deploy reuses the existing version instead of erroring.
+          EXISTING=$(aws elasticbeanstalk describe-application-versions \
+            --application-name "$EB_APPLICATION" --version-labels "$VERSION_LABEL" \
+            --query "length(ApplicationVersions)" --output text)
+          if [ "$EXISTING" = "0" ]; then
+            printf '{"AWSEBDockerrunVersion":"1","Image":{"Name":"%s","Update":"true"},"Ports":[{"ContainerPort":8080}]}\n' \
+              "$IMAGE" > Dockerrun.aws.json
+            zip -q "${VERSION_LABEL}.zip" Dockerrun.aws.json
+            aws s3 cp "${VERSION_LABEL}.zip" "s3://${EB_BUCKET}/${EB_APPLICATION}/${VERSION_LABEL}.zip"
+            aws elasticbeanstalk create-application-version \
+              --application-name "$EB_APPLICATION" \
+              --version-label "$VERSION_LABEL" \
+              --source-bundle "S3Bucket=${EB_BUCKET},S3Key=${EB_APPLICATION}/${VERSION_LABEL}.zip" \
+              --no-process
+          fi
 
           aws elasticbeanstalk update-environment \
             --environment-name "${{ vars.EB_ENVIRONMENT_NAME }}" \
