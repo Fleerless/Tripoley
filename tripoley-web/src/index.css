@@ -165,6 +165,9 @@ input {
 .status-err {
   color: #ff6b6b;
 }
+.status-version {
+  opacity: 0.55;
+}
 .center-pile {
   position: absolute;
   left: 50%;
