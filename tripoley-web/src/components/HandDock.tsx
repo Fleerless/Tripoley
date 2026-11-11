@@ -1,9 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { CardDto } from "../api/contracts";
+import { CARD_WIDTH, computeHandStep } from "../lib/handLayout";
 import { Card, cardKey, sortHand } from "./Card";
-
-const CARD_WIDTH = 50;
-const MAX_STEP = 42;
 
 interface HandDockProps {
   hand: CardDto[];
@@ -27,11 +25,7 @@ export function HandDock({ hand, legalPlays, onPlay }: HandDockProps) {
   }, []);
 
   const cards = sortHand(hand);
-  const step =
-    cards.length > 1 && trackWidth > 0
-      ? Math.min(MAX_STEP, (trackWidth - CARD_WIDTH - 1) / (cards.length - 1))
-      : MAX_STEP;
-  const overlap = step - CARD_WIDTH;
+  const overlap = computeHandStep(trackWidth, cards.length) - CARD_WIDTH;
 
   return (
     <div className="hand-dock">

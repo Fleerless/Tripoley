@@ -1,6 +1,6 @@
 import { LayoutGroup } from "motion/react";
-import type { PlayerSeatView } from "../api/contracts";
 import type { Game } from "../useGame";
+import { orderFromSelf, partitionSeats, seatPosition } from "../lib/seats";
 import { useIsMobile } from "../useIsMobile";
 import { CenterPile } from "./CenterPile";
 import { HandDock } from "./HandDock";
@@ -8,32 +8,13 @@ import { Pools } from "./Pools";
 import { Seat } from "./Seat";
 import { SeatChip } from "./SeatChip";
 
-function orderFromSelf(seats: PlayerSeatView[], mySeatIndex: number | null): PlayerSeatView[] {
-  if (mySeatIndex === null) return seats;
-  const start = seats.findIndex((s) => s.seatIndex === mySeatIndex);
-  if (start < 0) return seats;
-  return [...seats.slice(start), ...seats.slice(0, start)];
-}
-
-function seatPosition(displayIndex: number, total: number): { left: string; top: string } {
-  const angle = Math.PI / 2 + (2 * Math.PI * displayIndex) / total;
-  return {
-    left: `${50 + 42 * Math.cos(angle)}%`,
-    top: `${50 + 40 * Math.sin(angle)}%`,
-  };
-}
-
 export function Table({ game }: { game: Game }) {
   const gs = game.gameState;
   const mySeatIndex = game.hand?.seatIndex ?? null;
   const isMobile = useIsMobile();
 
   if (isMobile) {
-    const seats = gs?.seats ?? [];
-    const opponents = seats
-      .filter((s) => s.seatIndex !== mySeatIndex)
-      .sort((a, b) => a.seatIndex - b.seatIndex);
-    const self = mySeatIndex === null ? null : seats.find((s) => s.seatIndex === mySeatIndex);
+    const { opponents, self } = partitionSeats(gs?.seats ?? [], mySeatIndex);
     return (
       <LayoutGroup>
         <div className="table-mobile">
