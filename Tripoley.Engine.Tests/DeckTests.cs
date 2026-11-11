@@ -1,4 +1,4 @@
-﻿namespace Tripoley.Engine.Tests;
+namespace Tripoley.Engine.Tests;
 
 public class DeckTests
 {
@@ -13,60 +13,50 @@ public class DeckTests
     public void NewDeck_Has52UniqueCards()
     {
         Deck deck = new Deck();
-        List<Card> drawnCards = new List<Card>();
-        
-        while (deck.CardsRemaining > 0)
-        {
-            drawnCards.Add(deck.Draw());
-        }
+
+        List<Card> drawnCards = DrawAll(deck);
 
         Assert.Equal(52, drawnCards.Distinct().Count());
     }
     [Fact]
     public void Draw_ReducesDeckSize()
     {
-            Deck deck = new Deck();
-            
-            deck.Draw();
+        Deck deck = new Deck();
 
-            Assert.Equal(51, deck.CardsRemaining);
+        deck.Draw();
+
+        Assert.Equal(51, deck.CardsRemaining);
     }
     [Fact]
     public void Draw_EmptyDeck_ThrowsException()
     {
-            Deck deck = new Deck();
+        Deck deck = new Deck();
+        DrawAll(deck);
 
-            while (deck.CardsRemaining >0)
-            {
-                deck.Draw();
-            }
-            
-            Assert.Throws<InvalidOperationException>(() => deck.Draw());
+        Assert.Throws<InvalidOperationException>(() => deck.Draw());
     }
     [Fact]
     public void Shuffle_PreservesAllCards()
     {
         Deck deck = new Deck();
-        List<Card> shuffeledCards = new List<Card>();
 
         deck.Shuffle();
+        List<Card> shuffledCards = DrawAll(deck);
 
-        while (deck.CardsRemaining > 0)
-        {
-            shuffeledCards.Add(deck.Draw());
-        }
-
-        Assert.Equal(52, shuffeledCards.Count);
-        Assert.Equal(52, shuffeledCards.Distinct().Count());
+        Assert.Equal(52, shuffledCards.Count);
+        Assert.Equal(52, shuffledCards.Distinct().Count());
     }
     [Fact]
-    public void Draw_ReturnsACard()
+    public void Shuffle_ReordersTheCards()
     {
+        List<Card> original = DrawAll(new Deck());
+
         Deck deck = new Deck();
+        deck.Shuffle();
+        List<Card> shuffled = DrawAll(deck);
 
-        Card card = deck.Draw();
-
-        Assert.NotNull(card);
+        Assert.Equal(Sorted(original), Sorted(shuffled));
+        Assert.NotEqual(original, shuffled);
     }
     [Fact]
     public void Shuffle_DoesNotChangeCardCount()
@@ -77,7 +67,17 @@ public class DeckTests
 
         Assert.Equal(52, deck.CardsRemaining);
     }
+
+    private static List<Card> DrawAll(Deck deck)
+    {
+        List<Card> cards = new List<Card>();
+        while (deck.CardsRemaining > 0)
+        {
+            cards.Add(deck.Draw());
+        }
+        return cards;
+    }
+
+    private static IEnumerable<Card> Sorted(IEnumerable<Card> cards) =>
+        cards.OrderBy(card => card.Suit).ThenBy(card => card.Rank);
 }
-        
-        
-        

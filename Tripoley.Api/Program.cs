@@ -31,3 +31,5 @@ app.MapGet("/version", () => appVersion);
 app.MapHub<GameHub>("/hubs/gamehub");
 
 app.Run();
+
+public partial class Program;

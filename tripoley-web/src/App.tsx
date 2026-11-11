@@ -55,7 +55,7 @@ export default function App() {
       <div className="app">
       <div className="sign">Tripoley</div>
         {header}
-        <div>
+        <div className="join-row">
           your name:{" "}
           <input
             value={name}
@@ -70,7 +70,7 @@ export default function App() {
           )}
         </div>
 
-        <div style={{ marginTop: 8 }}>
+        <div className="join-row" style={{ marginTop: 8 }}>
           <button onClick={createRoom}>create room</button>
           <span style={{ margin: "0 8px" }}>or join by code:</span>
           <input
