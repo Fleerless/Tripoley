@@ -14,6 +14,7 @@ public class Game
 {
     private readonly Dictionary<Guid, Player> _players;
     private readonly List<Guid> _seatOrder;
+    private readonly Random _random;
     private Guid _dealerId;
     public Deal? CurrentDeal { get; private set; }
     public GamePhase GamePhase  { get; private set; } = GamePhase.WaitingForDeal;
@@ -22,10 +23,11 @@ public class Game
     public const int MaxPlayerCount = 9;
     public const int StartingChips = 100;
     public MichiganRound? CurrentMichiganRound { get; private set; }
-    public Game(IEnumerable<Player> players)
+    public Game(IEnumerable<Player> players, Random? random = null)
     {
         ArgumentNullException.ThrowIfNull(players);
 
+        _random = random ?? Random.Shared;
         _players = new Dictionary<Guid, Player>();
         _seatOrder = new List<Guid>();
 
@@ -62,7 +64,7 @@ public class Game
 
         foreach (Player player in eligible) Pools.AddAnte(player);
 
-        var deck = new Deck();
+        var deck = new Deck(_random);
         deck.Shuffle();
 
         CurrentDeal = Deal.Create(deck, eligible);

@@ -217,7 +217,8 @@ public class RoomTests
     [Fact]
     public void PlayingAFullGame_EndsCompletedWithACleanFinalProjection()
     {
-        Room room = CreateStartedRoom();
+        const int seed = 1;
+        Room room = CreateStartedRoom(new Random(seed));
 
         int safety = 0;
         while (room.State == RoomState.InProgress && safety++ < 100)
@@ -226,7 +227,7 @@ public class RoomTests
             room.AdvanceToNextDeal();
         }
 
-        Assert.Equal(RoomState.Completed, room.State);
+        Assert.True(room.State == RoomState.Completed, $"Seed {seed}: game never completed within {safety} deals.");
         Assert.Equal(GamePhase.GameComplete, room.Game!.GamePhase);
         Assert.NotNull(room.Game.CurrentMichiganRound);
 
@@ -241,9 +242,9 @@ public class RoomTests
     [Fact]
     public void NoWinnerRound_OnlyHappensWhenEveryHandHoldsOnlyTheStoppedSuit()
     {
-        for (int gameNo = 0; gameNo < 40; gameNo++)
+        for (int seed = 0; seed < 40; seed++)
         {
-            Room room = CreateStartedRoom();
+            Room room = CreateStartedRoom(new Random(seed));
             while (room.State == RoomState.InProgress)
             {
                 Game g = room.Game!;
@@ -254,7 +255,7 @@ public class RoomTests
                     foreach (Seat seat in deal.Seats)
                         Assert.True(
                             seat.Hand.Cards.All(c => c.Suit == last.Suit),
-                            $"Draw while a seat still holds a non-{last.Suit} card: "
+                            $"Seed {seed}: draw while a seat still holds a non-{last.Suit} card: "
                                 + string.Join(",", seat.Hand.Cards.Select(c => $"{c.Rank}{c.Suit}")));
                 }
                 room.AdvanceToNextDeal();
@@ -262,9 +263,11 @@ public class RoomTests
         }
     }
 
-    private static Room CreateStartedRoom()
+    private static Room CreateStartedRoom() => CreateStartedRoom(random: null);
+
+    private static Room CreateStartedRoom(Random? random)
     {
-        Room room = new("ABCD");
+        Room room = new("ABCD", random);
         AddReadyMember(room, "conn-1", "Jeff");
         AddReadyMember(room, "conn-2", "Ann");
         room.StartGame();

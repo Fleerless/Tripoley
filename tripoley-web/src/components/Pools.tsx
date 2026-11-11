@@ -41,11 +41,11 @@ function labelRotation(angleDeg: number): number {
   return rot;
 }
 
-export function Pools({ pools }: { pools: PoolView[] }) {
+export function Pools({ pools, className = "board" }: { pools: PoolView[]; className?: string }) {
   const count = (t: ChipPoolType) => pools.find((p) => p.type === t)?.chipCount ?? 0;
 
   return (
-    <svg className="board" viewBox="0 0 340 340" width={400} height={400}>
+    <svg className={className} viewBox="0 0 340 340">
       <circle cx={C} cy={C} r={R_OUTER} fill={FELT} stroke={BRASS} strokeWidth={5} />
       <circle cx={C} cy={C} r={R_OUTER - 6} fill="none" stroke={CREAM} strokeWidth={1} opacity={0.6} />
 
@@ -59,29 +59,38 @@ export function Pools({ pools }: { pools: PoolView[] }) {
       {WEDGES.map((w, i) => {
         const angle = -90 + i * 45;
         const p = pt(angle, R_LABEL);
-        const heart = pt(angle, R_INNER + 24);
+        const labelY = w.hearts > 0 ? 0 : -9;
+        const countY = w.hearts > 0 ? 17 : 9;
+        const isLongLabel = w.label.length > 7;
         return (
-          <g key={w.type}>
-            <g transform={`translate(${p.x} ${p.y}) rotate(${labelRotation(angle)})`}>
-              <text textAnchor="middle" y={-6} fontSize={11} fill={CREAM} letterSpacing="1">
-                {w.label}
-              </text>
-              <text textAnchor="middle" y={12} fontSize={13} fontWeight="bold" fill={AMBER}>
-                {count(w.type)}
-              </text>
-            </g>
+          <g key={w.type} transform={`translate(${p.x} ${p.y}) rotate(${labelRotation(angle)})`}>
             {w.hearts > 0 && (
-              <text
-                x={heart.x}
-                y={heart.y}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize={16}
-                fill={RED}
-              >
+              <text textAnchor="middle" dominantBaseline="central" y={-17} fontSize={14} fill={RED}>
                 {"♥".repeat(w.hearts)}
               </text>
             )}
+            <text
+              textAnchor="middle"
+              dominantBaseline="central"
+              y={labelY}
+              fontSize={11}
+              fill={CREAM}
+              letterSpacing="1"
+              textLength={isLongLabel ? 78 : undefined}
+              lengthAdjust="spacingAndGlyphs"
+            >
+              {w.label}
+            </text>
+            <text
+              textAnchor="middle"
+              dominantBaseline="central"
+              y={countY}
+              fontSize={13}
+              fontWeight="bold"
+              fill={AMBER}
+            >
+              {count(w.type)}
+            </text>
           </g>
         );
       })}
