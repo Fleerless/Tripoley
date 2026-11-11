@@ -2,7 +2,7 @@ using Tripoley.Engine;
 
 namespace Tripoley.Api.Rooms;
 
-public sealed class Room(string code)
+public sealed class Room(string code, Random? random = null)
 {
     public string Code { get; } = code;
     public RoomState State { get; private set; } = RoomState.Lobby;
@@ -11,6 +11,7 @@ public sealed class Room(string code)
 
     private readonly List<RoomMember> _members = [];
     private readonly object _lock = new();
+    private readonly Random _random = random ?? Random.Shared;
 
     public RoomMember? AddMember(string connectionId, string name)
     {
@@ -54,7 +55,7 @@ public sealed class Room(string code)
             if (_members.Count < Game.MinPlayerCount) return false;
             if (!_members.All(member => member.IsReady)) return false;
 
-            Game = new Game(_members.Select(member => member.Player));
+            Game = new Game(_members.Select(member => member.Player), _random);
             Game.StartNewDeal();
             // Will need to be changed when Hearts/Poker rounds are implemented
             Game.StartMichiganRound();
