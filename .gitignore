@@ -1,6 +1,8 @@
 bin/
 obj/
 TestResults/
+coverage.cobertura.xml
+coverage-report/
 
 .claude/settings.local.json
 .vscode/

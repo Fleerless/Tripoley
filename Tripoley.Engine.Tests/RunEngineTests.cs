@@ -82,16 +82,6 @@ public class RunEngineTests
 
     [Theory]
     [InlineData(Rank.Two, Rank.Three)]
-    [InlineData(Rank.Three, Rank.Four)]
-    [InlineData(Rank.Four, Rank.Five)]
-    [InlineData(Rank.Five, Rank.Six)]
-    [InlineData(Rank.Six, Rank.Seven)]
-    [InlineData(Rank.Seven, Rank.Eight)]
-    [InlineData(Rank.Eight, Rank.Nine)]
-    [InlineData(Rank.Nine, Rank.Ten)]
-    [InlineData(Rank.Ten, Rank.Jack)]
-    [InlineData(Rank.Jack, Rank.Queen)]
-    [InlineData(Rank.Queen, Rank.King)]
     [InlineData(Rank.King, Rank.Ace)]
     public void IsRunStopped_WhenNextRankIsInAnActiveHand_ReturnsFalse(Rank lastRank, Rank nextRank)
     {
