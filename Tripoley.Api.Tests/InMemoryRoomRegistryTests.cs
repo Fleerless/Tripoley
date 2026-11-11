@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Tripoley.Api.Rooms;
 
 namespace Tripoley.Api.Tests;
@@ -85,5 +86,18 @@ public class InMemoryRoomRegistryTests
         var registry = new InMemoryRoomRegistry();
 
         registry.Remove("NOPE");   // no-op, must not throw
+    }
+
+    [Fact]
+    public void Create_CalledConcurrently_RegistersEveryRoomWithADistinctCode()
+    {
+        var registry = new InMemoryRoomRegistry();
+        var rooms = new ConcurrentBag<Room>();
+
+        Parallel.For(0, 1000, _ => rooms.Add(registry.Create()));
+
+        string[] codes = rooms.Select(room => room.Code).ToArray();
+        Assert.Equal(1000, codes.Length);
+        Assert.Equal(codes.Length, codes.Distinct().Count());
     }
 }
