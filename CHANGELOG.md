@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.2](https://github.com/Fleerless/Tripoley/compare/v0.1.1...v0.1.2) (2026-11-11)
+
+
+### Features
+
+* **web:** add responsive mobile layout for the game table ([f85d34e](https://github.com/Fleerless/Tripoley/commit/f85d34ea1926199dc23616d98a431463f61e922b))
+
+
+### Bug Fixes
+
+* **web:** add top spacing so the top seat clears the Tripoley title ([2082d85](https://github.com/Fleerless/Tripoley/commit/2082d85011dd2e1bc3108ad763329e6e77ac11a7))
+
 ## [0.1.1](https://github.com/Fleerless/Tripoley/compare/v0.1.0...v0.1.1) (2026-11-10)
 
 
