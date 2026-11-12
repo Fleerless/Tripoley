@@ -118,6 +118,180 @@ input {
   margin: 0 4px;
 }
 
+/* lobby + landing screens: a centered column of neon panels that clears the fixed sign */
+.screen {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  padding-top: 104px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.conn-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #c7bfe0;
+}
+.conn-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #6b7280;
+}
+.conn-dot.online {
+  background: #49d08b;
+  box-shadow: 0 0 8px rgba(73, 208, 139, 0.8);
+}
+.conn-error {
+  color: #ff6b6b;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #1b3147, #0d2032);
+  border: 1px solid var(--brass);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.panel h3 {
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-label {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--brass-lt);
+}
+.field input {
+  margin: 0;
+  width: 100%;
+}
+.field-error {
+  font-size: 12px;
+  color: crimson;
+}
+
+.join-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.join-row input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.divider {
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #9fb0c8;
+}
+
+.btn-primary {
+  background: linear-gradient(160deg, var(--pink), #b5325a);
+  color: #fff;
+  border-color: var(--pink);
+}
+.btn-start {
+  background: linear-gradient(160deg, var(--amber), #c8792e);
+  color: #241400;
+  font-weight: 800;
+  border-color: var(--amber);
+}
+.btn-start:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  color: #9fb0c8;
+}
+
+.room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.room-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+}
+.room-code {
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--brass-lt);
+}
+.room-count {
+  color: var(--cream);
+  opacity: 0.8;
+}
+
+.member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.member {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(217, 179, 107, 0.4);
+}
+.member.ready {
+  border-color: var(--amber);
+}
+.member-name {
+  font-weight: 700;
+  color: var(--cream);
+}
+.member-status {
+  font-size: 13px;
+  color: #9fb0c8;
+}
+.member.ready .member-status {
+  color: var(--amber);
+}
+
+.lobby-actions {
+  display: flex;
+  gap: 8px;
+}
+.lobby-actions button {
+  flex: 1;
+  margin: 0;
+}
+
 .mat {
   position: relative;
   width: 1200px;
@@ -327,16 +501,21 @@ input {
     top: 6px;
   }
 
-  .join-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
+  .screen {
+    max-width: none;
+    padding-top: 72px;
   }
-  .join-row input {
-    flex: 1 1 140px;
-    min-width: 0;
-    margin: 0;
+  .btn-primary,
+  .btn-start,
+  .room-button,
+  .member {
+    min-height: 44px;
+  }
+  .join-row button {
+    min-height: 44px;
+  }
+  .lobby-actions {
+    flex-direction: column;
   }
 
   .table-mobile {
