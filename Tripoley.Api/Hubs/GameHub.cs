@@ -1,29 +1,57 @@
 namespace Tripoley.Api.Hubs;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Tripoley.Api.Rooms;
 using Tripoley.Api.Contracts;
 using Tripoley.Api.Projections;
 using Tripoley.Engine;
 
-public sealed class GameHub(IRoomRegistry roomRegistry) : Hub
+[Authorize]
+public sealed class GameHub(IRoomRegistry roomRegistry, ILogger<GameHub> logger) : Hub
 {
     private const string LobbyGroup = "__lobby__";
 
+    private string UserId => Context.UserIdentifier ?? throw new HubException("Not authenticated.");
+
     public override async Task OnConnectedAsync()
     {
-        await Groups.AddToGroupAsync(Context.ConnectionId, LobbyGroup);
-        await Clients.Caller.SendAsync(ClientEvents.OpenRoomsUpdated, BuildOpenRooms());
+        var room = roomRegistry.FindByUserId(UserId);
+        if (room is not null)
+        {
+            room.MarkConnected(UserId);
+            await Groups.AddToGroupAsync(Context.ConnectionId, room.Code);
+            logger.LogInformation("User {UserId} reconnected to room {RoomCode}.", UserId, room.Code);
+
+            if (room.Game is not null)
+            {
+                await Clients.Caller.SendAsync(ClientEvents.LobbyUpdated, RoomView.FromRoom(room));
+                await BroadcastGameState(room);
+            }
+            else
+            {
+                await BroadcastLobby(room);
+            }
+        }
+        else
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, LobbyGroup);
+            await Clients.Caller.SendAsync(ClientEvents.OpenRoomsUpdated, BuildOpenRooms());
+        }
+
         await base.OnConnectedAsync();
     }
 
     public async Task<RoomView> CreateRoom(string playerName)
     {
         var name = RequireName(playerName);
+        RequireNotAlreadyInARoom();
+
         var room = roomRegistry.Create();
-        room.AddMember(Context.ConnectionId, name);
+        room.AddMember(UserId, name);
         await Groups.AddToGroupAsync(Context.ConnectionId, room.Code);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, LobbyGroup);
+        logger.LogInformation("User {UserId} created room {RoomCode}.", UserId, room.Code);
         await BroadcastOpenRooms();
         return RoomView.FromRoom(room);
     }
@@ -32,15 +60,17 @@ public sealed class GameHub(IRoomRegistry roomRegistry) : Hub
     {
         var name = RequireName(playerName);
         var code = RequireCode(roomCode);
+        RequireNotAlreadyInARoom();
 
         var room = roomRegistry.Find(code)
             ?? throw new HubException("No room with that code.");
 
-        if (room.AddMember(Context.ConnectionId, name) is null)
+        if (room.AddMember(UserId, name) is null)
             throw new HubException("Could not join: the room is full or the game has already started.");
 
         await Groups.AddToGroupAsync(Context.ConnectionId, room.Code);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, LobbyGroup);
+        logger.LogInformation("User {UserId} joined room {RoomCode}.", UserId, room.Code);
         await BroadcastLobby(room);
         await BroadcastOpenRooms();
         return RoomView.FromRoom(room);
@@ -49,7 +79,7 @@ public sealed class GameHub(IRoomRegistry roomRegistry) : Hub
     public async Task SetReady(bool isReady)
     {
         var room = GetRoomOrThrow();
-        room.SetReady(Context.ConnectionId, isReady);
+        room.SetReady(UserId, isReady);
         await BroadcastLobby(room);
     }
 
@@ -68,7 +98,7 @@ public sealed class GameHub(IRoomRegistry roomRegistry) : Hub
     public async Task PlayCard(CardDto card)
     {
         var room = GetRoomOrThrow();
-        if (!room.TryPlayCard(Context.ConnectionId, new Card(card.Suit, card.Rank)))
+        if (!room.TryPlayCard(UserId, new Card(card.Suit, card.Rank)))
             throw new HubException("That move isn't legal right now.");
 
         await BroadcastGameState(room);
@@ -83,19 +113,17 @@ public sealed class GameHub(IRoomRegistry roomRegistry) : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var room = roomRegistry.FindByConnectionId(Context.ConnectionId);
+        var room = roomRegistry.FindByUserId(UserId);
         if (room is not null)
         {
-            // TODO: mid-game disconnect. RemoveMember only acts in the lobby, engine can't drop a player yet.
-            room.RemoveMember(Context.ConnectionId);
+            room.MarkDisconnected(UserId);
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, room.Code);
+            logger.LogInformation("User {UserId} disconnected from room {RoomCode}; seat kept for reconnect.", UserId, room.Code);
 
-            if (room.Members().Count == 0)
-                roomRegistry.Remove(room.Code);
+            if (room.Game is not null)
+                await BroadcastGameState(room);
             else
                 await BroadcastLobby(room);
-
-            await BroadcastOpenRooms();
         }
 
         await base.OnDisconnectedAsync(exception);
@@ -115,8 +143,14 @@ public sealed class GameHub(IRoomRegistry roomRegistry) : Hub
         return code;
     }
 
+    private void RequireNotAlreadyInARoom()
+    {
+        if (roomRegistry.FindByUserId(UserId) is not null)
+            throw new HubException("You are already in a room.");
+    }
+
     private Room GetRoomOrThrow() =>
-        roomRegistry.FindByConnectionId(Context.ConnectionId)
+        roomRegistry.FindByUserId(UserId)
             ?? throw new HubException("You are not in a room.");
 
     private Task BroadcastLobby(Room room) =>
@@ -132,11 +166,19 @@ public sealed class GameHub(IRoomRegistry roomRegistry) : Hub
 
     private async Task BroadcastGameState(Room room)
     {
-        var state = GameStateProjector.ToGameStateView(room.Game!, room.LastRoundWinner);
+        var (state, hands) = room.ReadGame((game, lastWinner, members) =>
+        {
+            var connected = members.ToDictionary(member => member.Player.Id, member => member.IsConnected);
+            var stateView = GameStateProjector.ToGameStateView(game, lastWinner, connected);
+            var handViews = members
+                .Select(member => (member.UserId, View: GameStateProjector.ToSelfView(game, member.Player.Id)))
+                .ToList();
+            return (stateView, handViews);
+        });
+
         await Clients.Group(room.Code).SendAsync(ClientEvents.GameStateUpdated, state);
 
-        foreach (var member in room.Members())
-            await Clients.Client(member.ConnectionId)
-                .SendAsync(ClientEvents.HandUpdated, GameStateProjector.ToSelfView(room.Game!, member.Player.Id));
+        foreach (var (userId, view) in hands)
+            await Clients.User(userId).SendAsync(ClientEvents.HandUpdated, view);
     }
 }

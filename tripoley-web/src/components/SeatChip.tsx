@@ -8,8 +8,9 @@ interface SeatChipProps {
 
 export function SeatChip({ seat, isTurn, isSelf }: SeatChipProps) {
   return (
-    <div className={`seat-chip${isTurn ? " active" : ""}${isSelf ? " self" : ""}`}>
+    <div className={`seat-chip${isTurn ? " active" : ""}${isSelf ? " self" : ""}${seat.isConnected ? "" : " away"}`}>
       <div className="seat-chip-name">
+        <span className={`conn-dot${seat.isConnected ? " online" : ""}`} />
         {seat.name}
         {isSelf ? " (you)" : ""}
       </div>

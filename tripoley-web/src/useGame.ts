@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as signalR from "@microsoft/signalr";
-import { createConnection } from "./api/gameConnection";
+import { createConnection, nextReconnectDelayMs } from "./api/gameConnection";
 import {
   HubMethods,
   ServerEvents,
@@ -37,18 +37,55 @@ export function useGame(): Game {
   useEffect(() => {
     const conn = createConnection();
     connRef.current = conn;
+    let disposed = false;
+    let attempt = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     conn.on(ServerEvents.LobbyUpdated, (r: RoomView) => setRoom(r));
     conn.on(ServerEvents.GameStateUpdated, (s: GameStateView) => setGameState(s));
     conn.on(ServerEvents.HandUpdated, (h: SelfView) => setHand(h));
-    conn.on(ServerEvents.OpenRoomsUpdated, (rooms: OpenRoomView[]) => setOpenRooms(rooms));
+    conn.on(ServerEvents.OpenRoomsUpdated, (rooms: OpenRoomView[]) => {
+      setOpenRooms(rooms);
+      setRoom(null);
+      setGameState(null);
+      setHand(null);
+    });
 
-    conn
-      .start()
-      .then(() => setConnected(true))
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+    conn.onreconnecting(() => setConnected(false));
+    conn.onreconnected(() => {
+      setConnected(true);
+      setError(null);
+    });
+
+    async function start() {
+      try {
+        await conn.start();
+        if (disposed) return;
+        attempt = 0;
+        setConnected(true);
+        setError(null);
+      } catch (e) {
+        if (disposed) return;
+        setError(e instanceof Error ? e.message : String(e));
+        scheduleStart();
+      }
+    }
+
+    function scheduleStart() {
+      if (disposed) return;
+      retryTimer = setTimeout(() => void start(), nextReconnectDelayMs(attempt++));
+    }
+
+    conn.onclose(() => {
+      setConnected(false);
+      scheduleStart();
+    });
+
+    void start();
 
     return () => {
+      disposed = true;
+      clearTimeout(retryTimer);
       setConnected(false);
       connRef.current = null;
       void conn.stop();

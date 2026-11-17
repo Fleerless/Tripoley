@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Time.Testing;
 using Tripoley.Api.Rooms;
 
 namespace Tripoley.Api.Tests;
@@ -48,25 +49,25 @@ public class InMemoryRoomRegistryTests
     }
 
     [Fact]
-    public void FindByConnectionId_ReturnsRoomContainingTheConnection()
+    public void FindByUserId_ReturnsRoomContainingTheUser()
     {
         var registry = new InMemoryRoomRegistry();
         Room room = registry.Create();
-        room.AddMember("conn-1", "Jeff");
+        room.AddMember("user-1", "Jeff");
 
-        Room? found = registry.FindByConnectionId("conn-1");
+        Room? found = registry.FindByUserId("user-1");
 
         Assert.Same(room, found);
     }
 
     [Fact]
-    public void FindByConnectionId_UnknownConnection_ReturnsNull()
+    public void FindByUserId_UnknownUser_ReturnsNull()
     {
         var registry = new InMemoryRoomRegistry();
         Room room = registry.Create();
-        room.AddMember("conn-1", "Jeff");
+        room.AddMember("user-1", "Jeff");
 
-        Assert.Null(registry.FindByConnectionId("conn-unknown"));
+        Assert.Null(registry.FindByUserId("user-unknown"));
     }
 
     [Fact]
@@ -81,11 +82,60 @@ public class InMemoryRoomRegistryTests
     }
 
     [Fact]
+    public void Remove_AlsoDropsTheUserFromTheByUserIndex()
+    {
+        var registry = new InMemoryRoomRegistry();
+        Room room = registry.Create();
+        room.AddMember("user-1", "Jeff");
+
+        registry.Remove(room.Code);
+
+        Assert.Null(registry.FindByUserId("user-1"));
+    }
+
+    [Fact]
     public void Remove_UnknownCode_DoesNotThrow()
     {
         var registry = new InMemoryRoomRegistry();
 
-        registry.Remove("NOPE");   // no-op, must not throw
+        registry.Remove("NOPE");
+    }
+
+    [Fact]
+    public void RemoveIdle_DropsRoomsAbandonedBeforeTheCutoff()
+    {
+        var time = new FakeTimeProvider();
+        var registry = new InMemoryRoomRegistry(time);
+        Room room = registry.Create();
+        room.AddMember("user-1", "Jeff");
+        room.MarkDisconnected("user-1");
+
+        time.Advance(TimeSpan.FromMinutes(31));
+        int removed = registry.RemoveIdle(time.GetUtcNow() - TimeSpan.FromMinutes(30));
+
+        Assert.Equal(1, removed);
+        Assert.Null(registry.Find(room.Code));
+    }
+
+    [Fact]
+    public void RemoveIdle_KeepsRoomsThatAreStillOccupiedOrRecentlyIdle()
+    {
+        var time = new FakeTimeProvider();
+        var registry = new InMemoryRoomRegistry(time);
+
+        Room occupied = registry.Create();
+        occupied.AddMember("user-1", "Jeff");
+
+        Room recentlyIdle = registry.Create();
+        recentlyIdle.AddMember("user-2", "Ann");
+        recentlyIdle.MarkDisconnected("user-2");
+
+        time.Advance(TimeSpan.FromMinutes(5));
+        int removed = registry.RemoveIdle(time.GetUtcNow() - TimeSpan.FromMinutes(30));
+
+        Assert.Equal(0, removed);
+        Assert.Same(occupied, registry.Find(occupied.Code));
+        Assert.Same(recentlyIdle, registry.Find(recentlyIdle.Code));
     }
 
     [Fact]

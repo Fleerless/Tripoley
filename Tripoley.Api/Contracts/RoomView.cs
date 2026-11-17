@@ -6,8 +6,8 @@ public sealed record RoomView(string Code, RoomState State, IReadOnlyList<RoomMe
 {
     public static RoomView FromRoom(Room room)
     {
-        var members = room.Members().Select(member => new RoomMemberView(member.Player.Id, member.Player.Name, member.IsReady)).ToList();
+        var members = room.Members().Select(member => new RoomMemberView(member.Player.Id, member.Player.Name, member.IsReady, member.IsConnected)).ToList();
         return new RoomView(room.Code, room.State, members);
     }
 };
-public sealed record RoomMemberView(Guid PlayerId, string Name, bool IsReady);
+public sealed record RoomMemberView(Guid PlayerId, string Name, bool IsReady, bool IsConnected);

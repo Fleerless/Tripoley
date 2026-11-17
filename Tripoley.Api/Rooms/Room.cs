@@ -2,48 +2,73 @@ using Tripoley.Engine;
 
 namespace Tripoley.Api.Rooms;
 
-public sealed class Room(string code, Random? random = null)
+public sealed class Room(string code, Random? random = null, TimeProvider? timeProvider = null)
 {
     public string Code { get; } = code;
     public RoomState State { get; private set; } = RoomState.Lobby;
     public Game? Game { get; private set; }
     public string? LastRoundWinner { get; private set; }
 
+    public DateTimeOffset? EmptySince { get; private set; }
+
     private readonly List<RoomMember> _members = [];
     private readonly object _lock = new();
     private readonly Random _random = random ?? Random.Shared;
+    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
 
-    public RoomMember? AddMember(string connectionId, string name)
+    public event Action<string>? MemberAdded;
+
+    public RoomMember? AddMember(string userId, string name)
     {
+        RoomMember member;
         lock (_lock)
         {
             if (State != RoomState.Lobby) return null;
             if (_members.Count >= Game.MaxPlayerCount) return null;
 
-            var member = new RoomMember(new Player(Game.StartingChips, name), connectionId);
+            member = new RoomMember(new Player(Game.StartingChips, name), userId);
             _members.Add(member);
-            return member;
+            RefreshEmptySince();
         }
+
+        MemberAdded?.Invoke(userId);
+        return member;
     }
 
-    public bool RemoveMember(string connectionId)
+    public bool SetReady(string userId, bool isReady)
     {
         lock (_lock)
         {
-            if (State != RoomState.Lobby) return false;
-            return _members.RemoveAll(member => member.ConnectionId == connectionId) > 0;
-        }
-    }
-
-    public bool SetReady(string connectionId, bool isReady)
-    {
-        lock (_lock)
-        {
-            var member = _members.FirstOrDefault(member => member.ConnectionId == connectionId);
+            var member = FindMemberNoLock(userId);
             if (member is null) return false;
 
             member.IsReady = isReady;
             return true;
+        }
+    }
+
+    public RoomMember? MarkDisconnected(string userId) => SetConnected(userId, false);
+
+    public RoomMember? MarkConnected(string userId) => SetConnected(userId, true);
+
+    private RoomMember? SetConnected(string userId, bool isConnected)
+    {
+        lock (_lock)
+        {
+            var member = FindMemberNoLock(userId);
+            if (member is null) return null;
+
+            member.IsConnected = isConnected;
+            RefreshEmptySince();
+            return member;
+        }
+    }
+
+    public bool IsAbandonedSince(DateTimeOffset cutoff)
+    {
+        lock (_lock)
+        {
+            return EmptySince is { } since && since <= cutoff;
         }
     }
 
@@ -53,7 +78,7 @@ public sealed class Room(string code, Random? random = null)
         {
             if (State != RoomState.Lobby) return false;
             if (_members.Count < Game.MinPlayerCount) return false;
-            if (!_members.All(member => member.IsReady)) return false;
+            if (!_members.All(member => member.IsReady && member.IsConnected)) return false;
 
             Game = new Game(_members.Select(member => member.Player), _random);
             Game.StartNewDeal();
@@ -64,11 +89,11 @@ public sealed class Room(string code, Random? random = null)
         }
     }
 
-    public RoomMember? FindMember(string connectionId)
+    public RoomMember? FindMember(string userId)
     {
         lock (_lock)
         {
-            return _members.FirstOrDefault(member => member.ConnectionId == connectionId);
+            return FindMemberNoLock(userId);
         }
     }
     public IReadOnlyList<RoomMember> Members()
@@ -79,13 +104,13 @@ public sealed class Room(string code, Random? random = null)
         }
     }
 
-    public bool TryPlayCard(string connectionId, Card card)
+    public bool TryPlayCard(string userId, Card card)
     {
         lock (_lock)
         {
             if (State != RoomState.InProgress || Game?.CurrentDeal is null) return false;
 
-            var member = _members.FirstOrDefault(member => member.ConnectionId == connectionId);
+            var member = FindMemberNoLock(userId);
             if (member is null) return false;
 
             var seats = Game.CurrentDeal.Seats;
@@ -126,5 +151,24 @@ public sealed class Room(string code, Random? random = null)
             Game.StartMichiganRound();
             return true;
         }
+    }
+
+    // Keep `read` CPU-only: no I/O, so the lock is never held across an await.
+    public T ReadGame<T>(Func<Game, string?, IReadOnlyList<RoomMember>, T> read)
+    {
+        lock (_lock)
+        {
+            if (Game is null) throw new InvalidOperationException("No game in progress.");
+            return read(Game, LastRoundWinner, _members);
+        }
+    }
+
+    private RoomMember? FindMemberNoLock(string userId) =>
+        _members.FirstOrDefault(member => member.UserId == userId);
+
+    private void RefreshEmptySince()
+    {
+        bool allAway = _members.Count > 0 && _members.All(member => !member.IsConnected);
+        EmptySince = allAway ? EmptySince ?? _time.GetUtcNow() : null;
     }
 }

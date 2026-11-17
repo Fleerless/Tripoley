@@ -5,13 +5,16 @@ using Tripoley.Api.Contracts;
 
 public static class GameStateProjector
 {
-    public static GameStateView ToGameStateView(Game game, string? lastRoundWinner = null)
+    public static GameStateView ToGameStateView(Game game, string? lastRoundWinner = null,
+        IReadOnlyDictionary<Guid, bool>? connectedByPlayerId = null)
     {
         var pools = Enum.GetValues<ChipPoolType>().Select(type => new PoolView(type, game.Pools.Get(type).ChipCount)).ToList();
         var round = game.GamePhase == GamePhase.GameComplete ? null : game.CurrentMichiganRound;
         IReadOnlyList<PlayerSeatView> seats = game.CurrentDeal is null
             ? []
-            : game.CurrentDeal.Seats.Select((seat, index) => new PlayerSeatView(index, seat.Player.Name, seat.Player.ChipCount, seat.Hand.CardsRemaining)).ToList();
+            : game.CurrentDeal.Seats.Select((seat, index) => new PlayerSeatView(
+                index, seat.Player.Name, seat.Player.ChipCount, seat.Hand.CardsRemaining,
+                connectedByPlayerId?.GetValueOrDefault(seat.Player.Id, false) ?? false)).ToList();
 
         return new GameStateView(
             game.GamePhase,
