@@ -42,6 +42,7 @@ export interface PlayerSeatView {
   name: string;
   chipCount: number;
   cardsRemaining: number;
+  isConnected: boolean;
 }
 
 export interface PoolView {
@@ -53,6 +54,7 @@ export interface RoomMemberView {
   playerId: string;
   name: string;
   isReady: boolean;
+  isConnected: boolean;
 }
 
 export interface RoomView {

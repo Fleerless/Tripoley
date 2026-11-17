@@ -17,9 +17,34 @@ public class GameStateProjectorTests
         Assert.Equal(players.Length, view.Seats.Count);
         Assert.Equal(Enum.GetValues<ChipPoolType>().Length, view.Pools.Count);
 
-        // Each public seat exposes the engine's real card COUNT (and the type has no field for the cards themselves).
         for (int index = 0; index < view.Seats.Count; index++)
             Assert.Equal(game.CurrentDeal!.Seats[index].Hand.CardsRemaining, view.Seats[index].CardsRemaining);
+    }
+
+    [Fact]
+    public void ToGameStateView_MarksSeatsWithTheirConnectionStatus()
+    {
+        Game game = StartedGame(out Player[] players);
+        var connected = new Dictionary<Guid, bool>
+        {
+            [players[0].Id] = true,
+            [players[1].Id] = false,
+        };
+
+        GameStateView view = GameStateProjector.ToGameStateView(game, connectedByPlayerId: connected);
+
+        Assert.True(view.Seats.First(seat => seat.Name == players[0].Name).IsConnected);
+        Assert.False(view.Seats.First(seat => seat.Name == players[1].Name).IsConnected);
+    }
+
+    [Fact]
+    public void ToGameStateView_WithoutConnectionInfo_DefaultsSeatsToNotConnected()
+    {
+        Game game = StartedGame(out _);
+
+        GameStateView view = GameStateProjector.ToGameStateView(game);
+
+        Assert.All(view.Seats, seat => Assert.False(seat.IsConnected));
     }
 
     [Fact]

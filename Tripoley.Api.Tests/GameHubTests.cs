@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Tripoley.Api.Contracts;
 using Tripoley.Api.Hubs;
@@ -11,27 +12,31 @@ public class GameHubTests
 {
     private static GameHub BuildHub(
         IRoomRegistry registry,
-        string connectionId,
+        string identity,
         out IHubCallerClients clients,
         out IGroupManager groups)
     {
         var caller = Substitute.For<ISingleClientProxy>();
         var clientProxies = new Dictionary<string, ISingleClientProxy>();
+        var userProxies = new Dictionary<string, ISingleClientProxy>();
         var groupProxies = new Dictionary<string, IClientProxy>();
 
         clients = Substitute.For<IHubCallerClients>();
         clients.Caller.Returns(caller);
         clients.Client(Arg.Any<string>())
             .Returns(call => Cached(clientProxies, (string)call[0]!, () => Substitute.For<ISingleClientProxy>()));
+        clients.User(Arg.Any<string>())
+            .Returns(call => Cached(userProxies, (string)call[0]!, () => Substitute.For<ISingleClientProxy>()));
         clients.Group(Arg.Any<string>())
             .Returns(call => Cached(groupProxies, (string)call[0]!, () => Substitute.For<IClientProxy>()));
 
         groups = Substitute.For<IGroupManager>();
 
         var context = Substitute.For<HubCallerContext>();
-        context.ConnectionId.Returns(connectionId);
+        context.ConnectionId.Returns(identity);
+        context.UserIdentifier.Returns(identity);
 
-        return new GameHub(registry) { Clients = clients, Groups = groups, Context = context };
+        return new GameHub(registry, NullLogger<GameHub>.Instance) { Clients = clients, Groups = groups, Context = context };
     }
 
     private static TProxy Cached<TProxy>(Dictionary<string, TProxy> cache, string key, Func<TProxy> factory)
@@ -88,6 +93,16 @@ public class GameHubTests
         Assert.NotNull(room);
         Assert.NotNull(room!.FindMember("c1"));
         await groups.Received().AddToGroupAsync("c1", view.Code, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateRoom_WhenAlreadyInARoom_Throws()
+    {
+        var registry = new InMemoryRoomRegistry();
+        var hub = BuildHub(registry, "c1", out _, out _);
+        await hub.CreateRoom("Jeff");
+
+        await Assert.ThrowsAsync<HubException>(() => hub.CreateRoom("Jeff Again"));
     }
 
     [Fact]
@@ -209,35 +224,11 @@ public class GameHubTests
         Seat leaderSeat = game.CurrentDeal!.Seats[leaderIndex];
         Card lead = leaderSeat.Hand.Cards.First(card => RunEngine.CanLeadRun(leaderSeat.Hand, card));
         RoomMember leader = room.Members().First(member => member.Player.Id == leaderSeat.Player.Id);
-        var hub = BuildHub(registry, leader.ConnectionId, out _, out _);
+        var hub = BuildHub(registry, leader.UserId, out _, out _);
 
         await hub.PlayCard(new CardDto(lead.Suit, lead.Rank));
 
         Assert.DoesNotContain(lead, leaderSeat.Hand.Cards);
-    }
-
-    [Fact]
-    public async Task OnConnectedAsync_PutsTheCallerInTheLobbyGroup()
-    {
-        var hub = BuildHub(new InMemoryRoomRegistry(), "c1", out _, out var groups);
-
-        await hub.OnConnectedAsync();
-
-        await groups.Received().AddToGroupAsync("c1", Arg.Any<string>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task OnDisconnectedAsync_RemovesTheMemberAndEmptiesTheRoom()
-    {
-        var registry = new InMemoryRoomRegistry();
-        var room = registry.Create();
-        room.AddMember("c1", "Alice");
-        var hub = BuildHub(registry, "c1", out _, out _);
-
-        await hub.OnDisconnectedAsync(null);
-
-        Assert.Null(room.FindMember("c1"));
-        Assert.Null(registry.Find(room.Code));
     }
 
     [Fact]
@@ -250,7 +241,7 @@ public class GameHubTests
         Seat leaderSeat = game.CurrentDeal!.Seats[leaderIndex];
         Card lead = leaderSeat.Hand.Cards.First(card => RunEngine.CanLeadRun(leaderSeat.Hand, card));
         RoomMember leader = room.Members().First(member => member.Player.Id == leaderSeat.Player.Id);
-        var hub = BuildHub(registry, leader.ConnectionId, out var clients, out _);
+        var hub = BuildHub(registry, leader.UserId, out var clients, out _);
 
         await hub.PlayCard(new CardDto(lead.Suit, lead.Rank));
 
@@ -258,7 +249,7 @@ public class GameHubTests
         {
             Seat seat = game.CurrentDeal!.Seats.First(s => s.Player.Id == member.Player.Id);
             var expected = seat.Hand.Cards.Select(card => new CardDto(card.Suit, card.Rank)).ToList();
-            SelfView self = LastMessage<SelfView>(clients.Client(member.ConnectionId), ClientEvents.HandUpdated);
+            SelfView self = LastMessage<SelfView>(clients.User(member.UserId), ClientEvents.HandUpdated);
             Assert.Equal(expected, self.Hand);
         }
     }
@@ -273,24 +264,13 @@ public class GameHubTests
         Seat leaderSeat = game.CurrentDeal!.Seats[leaderIndex];
         Card lead = leaderSeat.Hand.Cards.First(card => RunEngine.CanLeadRun(leaderSeat.Hand, card));
         RoomMember leader = room.Members().First(member => member.Player.Id == leaderSeat.Player.Id);
-        var hub = BuildHub(registry, leader.ConnectionId, out var clients, out _);
+        var hub = BuildHub(registry, leader.UserId, out var clients, out _);
 
         await hub.PlayCard(new CardDto(lead.Suit, lead.Rank));
 
-        SelfView alice = LastMessage<SelfView>(clients.Client("c0"), ClientEvents.HandUpdated);
-        SelfView bob = LastMessage<SelfView>(clients.Client("c1"), ClientEvents.HandUpdated);
+        SelfView alice = LastMessage<SelfView>(clients.User("c0"), ClientEvents.HandUpdated);
+        SelfView bob = LastMessage<SelfView>(clients.User("c1"), ClientEvents.HandUpdated);
         Assert.NotEqual(alice.Hand, bob.Hand);
-    }
-
-    [Fact]
-    public async Task OnConnectedAsync_SendsTheCallerTheOpenRoomsSnapshot()
-    {
-        var hub = BuildHub(new InMemoryRoomRegistry(), "c1", out var clients, out _);
-
-        await hub.OnConnectedAsync();
-
-        var rooms = LastMessage<IReadOnlyList<OpenRoomView>>(clients.Caller, ClientEvents.OpenRoomsUpdated);
-        Assert.Empty(rooms);
     }
 
     [Fact]
@@ -334,27 +314,9 @@ public class GameHubTests
 
         GameStateView state = LastMessage<GameStateView>(clients.Group(room.Code), ClientEvents.GameStateUpdated);
         Assert.Equal(GamePhase.MichiganRummyInProgress, state.Phase);
-        SelfView alice = LastMessage<SelfView>(clients.Client("c0"), ClientEvents.HandUpdated);
-        SelfView bob = LastMessage<SelfView>(clients.Client("c1"), ClientEvents.HandUpdated);
+        SelfView alice = LastMessage<SelfView>(clients.User("c0"), ClientEvents.HandUpdated);
+        SelfView bob = LastMessage<SelfView>(clients.User("c1"), ClientEvents.HandUpdated);
         Assert.NotEmpty(alice.Hand);
         Assert.NotEmpty(bob.Hand);
-    }
-
-    [Fact]
-    public async Task OnDisconnectedAsync_WhenOtherMembersRemain_KeepsTheRoomAndBroadcastsLobby()
-    {
-        var registry = new InMemoryRoomRegistry();
-        var room = registry.Create();
-        room.AddMember("c0", "Alice");
-        room.AddMember("c1", "Bob");
-        var hub = BuildHub(registry, "c1", out var clients, out _);
-
-        await hub.OnDisconnectedAsync(null);
-
-        Assert.Null(room.FindMember("c1"));
-        Assert.NotNull(room.FindMember("c0"));
-        Assert.Same(room, registry.Find(room.Code));
-        RoomView lobby = LastMessage<RoomView>(clients.Group(room.Code), ClientEvents.LobbyUpdated);
-        Assert.DoesNotContain(lobby.Members, member => member.Name == "Bob");
     }
 }

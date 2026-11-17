@@ -4,7 +4,8 @@ public interface IRoomRegistry
 {
     Room Create();
     Room? Find(string code);
-    Room? FindByConnectionId(string connectionId);
+    Room? FindByUserId(string userId);
     IReadOnlyList<Room> OpenRooms();
     void Remove(string code);
+    int RemoveIdle(DateTimeOffset cutoff);
 }

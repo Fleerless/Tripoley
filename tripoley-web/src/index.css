@@ -380,6 +380,34 @@ input {
   color: var(--brass-lt);
   letter-spacing: 1px;
 }
+.seat-name .conn-dot,
+.seat-chip-name .conn-dot,
+.member-name .conn-dot {
+  display: inline-block;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.member.away {
+  opacity: 0.5;
+}
+.member.away .member-status {
+  color: #ff6b6b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+.seat.away .nameplate,
+.seat-chip.away {
+  opacity: 0.5;
+}
+.seat-away-tag {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #ff6b6b;
+  text-transform: uppercase;
+}
 .seat.active .seat-name {
   color: var(--amber);
 }

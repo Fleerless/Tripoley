@@ -3,8 +3,9 @@ import type { RoomView } from "../api/contracts";
 import { ConnectionStatus } from "./ConnectionStatus";
 
 export function Lobby({ game, room }: { game: Game; room: RoomView }) {
-  const allReady = room.members.length > 0 && room.members.every((m) => m.isReady);
-  const canStart = room.members.length >= 2 && allReady;
+  const everyoneReadyAndPresent =
+    room.members.length > 0 && room.members.every((member) => member.isReady && member.isConnected);
+  const canStart = room.members.length >= 2 && everyoneReadyAndPresent;
 
   return (
     <div className="screen">
@@ -16,10 +17,18 @@ export function Lobby({ game, room }: { game: Game; room: RoomView }) {
         </h3>
 
         <ul className="member-list">
-          {room.members.map((m) => (
-            <li key={m.playerId} className={m.isReady ? "member ready" : "member"}>
-              <span className="member-name">{m.name}</span>
-              <span className="member-status">{m.isReady ? "✓ ready" : "waiting…"}</span>
+          {room.members.map((member) => (
+            <li
+              key={member.playerId}
+              className={`member${member.isReady ? " ready" : ""}${member.isConnected ? "" : " away"}`}
+            >
+              <span className="member-name">
+                <span className={`conn-dot${member.isConnected ? " online" : ""}`} />
+                {member.name}
+              </span>
+              <span className="member-status">
+                {!member.isConnected ? "away" : member.isReady ? "✓ ready" : "waiting…"}
+              </span>
             </li>
           ))}
         </ul>

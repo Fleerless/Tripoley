@@ -5,8 +5,8 @@ import type { RoomMemberView, RoomView } from "../api/contracts";
 import type { Game } from "../useGame";
 import { Lobby } from "./Lobby";
 
-function member(name: string, isReady: boolean): RoomMemberView {
-  return { playerId: name, name, isReady };
+function member(name: string, isReady: boolean, isConnected = true): RoomMemberView {
+  return { playerId: name, name, isReady, isConnected };
 }
 
 function makeGame(overrides: Partial<Game> = {}): Game {
@@ -72,5 +72,17 @@ describe("Lobby", () => {
     await userEvent.click(start);
 
     expect(startGame).toHaveBeenCalledOnce();
+  });
+
+  it("shows an away member and keeps start disabled while they are gone", () => {
+    render(
+      <Lobby
+        game={makeGame()}
+        room={room([member("Jeff", true), member("Ann", true, false)])}
+      />,
+    );
+
+    expect(screen.getByText("away")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start game/i })).toBeDisabled();
   });
 });
