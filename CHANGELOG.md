@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/Fleerless/Tripoley/compare/v0.1.2...v0.1.3) (2026-11-19)
+
+
+### Features
+
+* **api,web:** reconnect player sessions ([#44](https://github.com/Fleerless/Tripoley/pull/44)) ([bdf173c](https://github.com/Fleerless/Tripoley/commit/bdf173cb8a5b89b96a3b9991734e12b9662b5998))
+* **Lobby:** lobby is now mobile friendly with connection status ([#40](https://github.com/Fleerless/Tripoley/pull/40)) ([e88cb5d](https://github.com/Fleerless/Tripoley/commit/e88cb5d187e66521e70dc1ebf0021ca29a2ee448))
+
 ## [0.1.2](https://github.com/Fleerless/Tripoley/compare/v0.1.1...v0.1.2) (2026-11-11)
 
 
