@@ -87,25 +87,35 @@ jobs:
           aws elasticbeanstalk wait environment-updated \
             --environment-names "${{ vars.EB_ENVIRONMENT_NAME }}"
 
-          # Confirm the target version is actually live and the env is not Red
-          # before we go on to ship the web client. A failed deploy (e.g. the
-          # container crashes on boot) rolls back to the old version; without this
-          # check the job would "succeed" and ship new web against the old API.
+          # Gate 1: EB reports the target version as deployed. A crash-on-boot
+          # deploy rolls back, so a mismatch here means the API did not ship and we
+          # must not go on to deploy the web (the half-apply that leaves new web
+          # against an old API).
           LIVE=$(aws elasticbeanstalk describe-environments \
             --environment-names "${{ vars.EB_ENVIRONMENT_NAME }}" \
             --query 'Environments[0].VersionLabel' --output text)
-          HEALTH=$(aws elasticbeanstalk describe-environments \
-            --environment-names "${{ vars.EB_ENVIRONMENT_NAME }}" \
-            --query 'Environments[0].Health' --output text)
           if [ "$LIVE" != "$VERSION" ]; then
             echo "::error::Deploy rolled back: environment is on '$LIVE', not '$VERSION'. Aborting before the web deploy."
             exit 1
           fi
-          if [ "$HEALTH" = "Red" ]; then
-            echo "::error::Environment is Red after deploying '$VERSION'. Aborting before the web deploy."
+
+          # Gate 2: the API actually serves the target version over HTTPS. This is
+          # the real health signal (EB enhanced health is unreliable on this env and
+          # reports Red even while the app serves 200s); it also catches a container
+          # that deployed but is not serving. Retry to give the new container time.
+          API_ORIGIN="${{ vars.VITE_HUB_URL }}"; API_ORIGIN="${API_ORIGIN%/hubs/*}"
+          SERVED=""
+          for _ in 1 2 3 4 5 6; do
+            SERVED=$(curl -fsS -m 10 "$API_ORIGIN/version" 2>/dev/null || true)
+            [ "$SERVED" = "$VERSION" ] && break
+            echo "waiting for the API to serve $VERSION (got '$SERVED')..."
+            sleep 10
+          done
+          if [ "$SERVED" != "$VERSION" ]; then
+            echo "::error::API at $API_ORIGIN/version is serving '$SERVED', not '$VERSION'. Aborting before the web deploy."
             exit 1
           fi
-          echo "Promoted and verified: environment is on $VERSION (health $HEALTH)."
+          echo "Promoted and verified: EB on $VERSION, API serving $VERSION."
 
       # ---- Web client (still built per env: VITE_HUB_URL is compiled in) ----
       - name: Setup Node
