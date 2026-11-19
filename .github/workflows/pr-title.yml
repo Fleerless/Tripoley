@@ -1,0 +1,33 @@
+# Rejects pull requests whose title is not a Conventional Commit.
+# Squash merges use the PR title as the commit subject, and release-please reads
+# that subject to decide the next version and build the changelog. This keeps the
+# title valid the same way commitlint keeps individual commit messages valid.
+name: pr-title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            build
+            chore
+            ci
+            docs
+            perf
+            refactor
+            revert
+            style
+            test

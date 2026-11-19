@@ -1,23 +1,28 @@
 # Reusable deploy pipeline, called by deploy-production.yml.
-# Deploys both halves of the app for one environment:
-#   - API:    build the Docker image, push to ECR (tagged with the commit SHA),
-#             then ship it to Elastic Beanstalk as a new application version.
+# Promotes an already-built release artifact to one environment:
+#   - API:    point Elastic Beanstalk at the application version that was built
+#             and registered when the release was cut (see release-please.yml).
+#             No rebuild happens here, so the environment runs the exact image
+#             that was released, and rollback is a re-point to an older version.
 #   - Client: build tripoley-web against the env's hub URL, sync to S3, invalidate CDN.
+#             The SPA bakes VITE_HUB_URL at build time, so it is still built per env.
 #
-# The deployed version (for /version and the client) comes from
-# .release-please-manifest.json, so it tracks the release-please release.
+# The deployed version comes from .release-please-manifest.json; it is the
+# version label of the artifact to promote.
 #
 # Auth is via GitHub OIDC -> an IAM role (no long-lived AWS keys stored in GitHub).
 #
 # The production GitHub Environment must define these *variables* (Settings
 # -> Environments -> production -> Variables). None are secret:
-#   AWS_REGION                  us-west-2
-#   AWS_DEPLOY_ROLE_ARN         arn of the OIDC deploy role
-#   ECR_REPOSITORY              tripoley-api
 #   EB_ENVIRONMENT_NAME         tripoley-api-production
 #   VITE_HUB_URL                https://api.tripoley.jeffreyfleer.com/hubs/gamehub
 #   S3_BUCKET                   tripoley.jeffreyfleer.com
 #   CLOUDFRONT_DISTRIBUTION_ID  the env's client CloudFront distribution id
+# These *repository* variables are shared by the build (release-please.yml) and
+# deploy jobs, so they live at repo scope rather than on the environment:
+#   AWS_REGION                  us-west-2
+#   AWS_DEPLOY_ROLE_ARN         arn of the OIDC deploy role
+#   ECR_REPOSITORY              tripoley-api
 
 name: deploy
 
@@ -56,61 +61,31 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      # ---- API image -> ECR ----
-      - name: Log in to Amazon ECR
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and push API image
-        id: image
-        env:
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
-          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
-        run: |
-          IMAGE="$REGISTRY/$REPOSITORY:${{ github.sha }}"
-          docker build --build-arg APP_VERSION="${{ steps.version.outputs.value }}" \
-            -t "$IMAGE" -t "$REGISTRY/$REPOSITORY:${{ inputs.environment }}" .
-          docker push "$IMAGE"
-          docker push "$REGISTRY/$REPOSITORY:${{ inputs.environment }}"
-          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
-
-      # ---- Ship the image to Elastic Beanstalk ----
-      - name: Deploy to Elastic Beanstalk
-        env:
-          IMAGE: ${{ steps.image.outputs.image }}
+      # ---- Promote the already-built image by version label (no rebuild) ----
+      - name: Promote Elastic Beanstalk application version
         run: |
           set -euo pipefail
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          EB_BUCKET="elasticbeanstalk-${{ vars.AWS_REGION }}-${ACCOUNT_ID}"
-          VERSION_LABEL="${{ inputs.environment }}-${{ github.sha }}"
+          VERSION="${{ steps.version.outputs.value }}"
 
-          # The version label is tied to the commit SHA, so it is created once per
-          # commit. Only create it if it does not already exist, so re-running a
-          # failed deploy reuses the existing version instead of erroring.
+          # The artifact is built and registered when the release is cut. Fail
+          # loudly if it is missing rather than silently rebuilding a different one.
           EXISTING=$(aws elasticbeanstalk describe-application-versions \
-            --application-name "$EB_APPLICATION" --version-labels "$VERSION_LABEL" \
+            --application-name "$EB_APPLICATION" --version-labels "$VERSION" \
             --query "length(ApplicationVersions)" --output text)
           if [ "$EXISTING" = "0" ]; then
-            printf '{"AWSEBDockerrunVersion":"1","Image":{"Name":"%s","Update":"true"},"Ports":[{"ContainerPort":8080}]}\n' \
-              "$IMAGE" > Dockerrun.aws.json
-            zip -q "${VERSION_LABEL}.zip" Dockerrun.aws.json
-            aws s3 cp "${VERSION_LABEL}.zip" "s3://${EB_BUCKET}/${EB_APPLICATION}/${VERSION_LABEL}.zip"
-            aws elasticbeanstalk create-application-version \
-              --application-name "$EB_APPLICATION" \
-              --version-label "$VERSION_LABEL" \
-              --source-bundle "S3Bucket=${EB_BUCKET},S3Key=${EB_APPLICATION}/${VERSION_LABEL}.zip" \
-              --no-process
+            echo "::error::No EB application version '$VERSION' to promote. Was the release artifact built?"
+            exit 1
           fi
 
           aws elasticbeanstalk update-environment \
             --environment-name "${{ vars.EB_ENVIRONMENT_NAME }}" \
-            --version-label "$VERSION_LABEL"
+            --version-label "$VERSION"
 
           # Block until the environment finishes updating and reports Ready.
           aws elasticbeanstalk wait environment-updated \
             --environment-names "${{ vars.EB_ENVIRONMENT_NAME }}"
 
-      # ---- Web client ----
+      # ---- Web client (still built per env: VITE_HUB_URL is compiled in) ----
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

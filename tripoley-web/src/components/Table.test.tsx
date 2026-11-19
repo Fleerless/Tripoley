@@ -19,8 +19,8 @@ function setViewport(isMobile: boolean) {
 }
 
 const seats: PlayerSeatView[] = [
-  { seatIndex: 0, name: "Alice", chipCount: 9, cardsRemaining: 5 },
-  { seatIndex: 1, name: "Bob", chipCount: 9, cardsRemaining: 2 },
+  { seatIndex: 0, name: "Alice", chipCount: 9, cardsRemaining: 5, isConnected: false },
+  { seatIndex: 1, name: "Bob", chipCount: 9, cardsRemaining: 2, isConnected: true },
 ];
 
 const myHand: CardDto[] = [
@@ -107,5 +107,11 @@ describe("Table (desktop)", () => {
     setViewport(false);
     render(<Table game={makeGame({ gameState: null, hand: null })} />);
     expect(screen.queryByText("Alice")).not.toBeInTheDocument();
+  });
+
+  it("marks a disconnected opponent as away", () => {
+    setViewport(false);
+    render(<Table game={makeGame()} />);
+    expect(screen.getByText("away")).toBeInTheDocument();
   });
 });

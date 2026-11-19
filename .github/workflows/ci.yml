@@ -39,31 +39,21 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore Tripoley.slnx
 
-      - name: Test
-        run: dotnet test Tripoley.slnx --configuration Release --no-restore --nologo --collect:"XPlat Code Coverage" --results-directory ./TestResults
+      - name: Restore .NET tools
+        run: dotnet tool restore
 
-      - name: Upload coverage
+      - name: Test with coverage gate
+        run: dotnet test Tripoley.slnx --configuration Release --no-restore --nologo /p:CollectCoverage=true
+
+      - name: Coverage report (undercovered classes)
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-coverage
-          path: TestResults/**/coverage.cobertura.xml
-
-      - name: Enforce coverage threshold
-        uses: irongut/CodeCoverageSummary@v1.3.0
-        with:
-          filename: TestResults/**/coverage.cobertura.xml
-          badge: true
-          fail_below_min: true
-          format: markdown
-          hide_complexity: true
-          indicators: true
-          output: both
-          thresholds: "85 90"
-
-      - name: Publish coverage summary
-        if: always()
-        run: cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          dotnet tool run reportgenerator \
+            -reports:"*.Tests/coverage.cobertura.xml" \
+            -targetdir:coverage-report \
+            -reporttypes:"TextSummary;MarkdownSummaryGithub"
+          cat coverage-report/Summary.txt
+          cat coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
 
   web:
     runs-on: ubuntu-latest

@@ -2,7 +2,13 @@
 # On every push to develop, release-please reads the commit history and keeps a
 # "Release PR" open that bumps the version in .release-please-manifest.json and
 # updates CHANGELOG.md. Merging that PR creates the git tag (vX.Y.Z) and the
-# GitHub Release. The version is then shipped by promoting develop -> production.
+# GitHub Release.
+#
+# When a release is cut, the build-artifact job builds the API image ONCE, tagged
+# with the released version, and registers it as an Elastic Beanstalk application
+# version. Deploys then promote that exact artifact by version label (see
+# deploy.yml) instead of rebuilding per environment. The version is shipped by
+# promoting develop -> production.
 name: release-please
 
 on:
@@ -16,8 +22,77 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # Build the release artifact once, keyed by semantic version, so every
+  # environment later promotes the identical image instead of rebuilding.
+  build-artifact:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required for AWS OIDC
+      contents: read
+    env:
+      EB_APPLICATION: tripoley-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read released version
+        id: version
+        run: echo "value=$(jq -r '."."' .release-please-manifest.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push the API image once, tagged by version
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          IMAGE="$REGISTRY/$REPOSITORY:$VERSION"
+          docker build --build-arg APP_VERSION="$VERSION" -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Register the Elastic Beanstalk application version
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          set -euo pipefail
+          IMAGE="$REGISTRY/$REPOSITORY:$VERSION"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          EB_BUCKET="elasticbeanstalk-${{ vars.AWS_REGION }}-${ACCOUNT_ID}"
+
+          # Idempotent: one application version per release. Re-running the build
+          # reuses the existing version instead of erroring.
+          EXISTING=$(aws elasticbeanstalk describe-application-versions \
+            --application-name "$EB_APPLICATION" --version-labels "$VERSION" \
+            --query "length(ApplicationVersions)" --output text)
+          if [ "$EXISTING" = "0" ]; then
+            printf '{"AWSEBDockerrunVersion":"1","Image":{"Name":"%s","Update":"true"},"Ports":[{"ContainerPort":8080}]}\n' \
+              "$IMAGE" > Dockerrun.aws.json
+            zip -q "${VERSION}.zip" Dockerrun.aws.json
+            aws s3 cp "${VERSION}.zip" "s3://${EB_BUCKET}/${EB_APPLICATION}/${VERSION}.zip"
+            aws elasticbeanstalk create-application-version \
+              --application-name "$EB_APPLICATION" \
+              --version-label "$VERSION" \
+              --source-bundle "S3Bucket=${EB_BUCKET},S3Key=${EB_APPLICATION}/${VERSION}.zip" \
+              --no-process
+          fi

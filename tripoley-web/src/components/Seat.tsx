@@ -15,11 +15,16 @@ const sameCard = (a: CardDto, b: CardDto) => a.suit === b.suit && a.rank === b.r
 
 export function Seat({ seat, isSelf, isTurn, position, hand, legalPlays = [], onPlay }: SeatProps) {
   return (
-    <div className={`seat${isTurn ? " active" : ""}`} style={{ left: position.left, top: position.top }}>
+    <div
+      className={`seat${isTurn ? " active" : ""}${seat.isConnected ? "" : " away"}`}
+      style={{ left: position.left, top: position.top }}
+    >
       <div className="nameplate">
         <div className="seat-name">
+          <span className={`conn-dot${seat.isConnected ? " online" : ""}`} />
           {seat.name}
           {isSelf ? " (you)" : ""}
+          {seat.isConnected ? null : <span className="seat-away-tag">away</span>}
         </div>
         <div className="seat-chips">
           <span className="chip-stack">

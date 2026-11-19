@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Time.Testing;
 using Tripoley.Api.Contracts;
 using Tripoley.Api.Projections;
 using Tripoley.Api.Rooms;
@@ -12,14 +13,14 @@ public class RoomTests
     {
         Room room = new("ABCD");
 
-        RoomMember? member = room.AddMember(connectionId: "conn-1", name: "Jeff");
+        RoomMember? member = room.AddMember(userId: "user-1", name: "Jeff");
 
         Assert.NotNull(member);
-        Assert.Equal("conn-1", member.ConnectionId);
+        Assert.Equal("user-1", member.UserId);
         Assert.Equal("Jeff", member.Player.Name);
         Assert.False(member.IsReady);
-        // FindMember must return the same instance, not a freshly built copy.
-        Assert.Same(member, room.FindMember("conn-1"));
+        Assert.True(member.IsConnected);
+        Assert.Same(member, room.FindMember("user-1"));
     }
 
     [Fact]
@@ -27,7 +28,7 @@ public class RoomTests
     {
         Room room = new("ABCD");
 
-        RoomMember member = room.AddMember("conn-1", "Jeff")!;
+        RoomMember member = room.AddMember("user-1", "Jeff")!;
 
         Assert.Equal(Game.StartingChips, member.Player.ChipCount);
     }
@@ -37,9 +38,9 @@ public class RoomTests
     {
         Room room = new("ABCD");
         for (int seat = 0; seat < Game.MaxPlayerCount; seat++)
-            Assert.NotNull(room.AddMember($"conn-{seat}", $"Player {seat}"));
+            Assert.NotNull(room.AddMember($"user-{seat}", $"Player {seat}"));
 
-        RoomMember? overflow = room.AddMember("conn-extra", "Latecomer");
+        RoomMember? overflow = room.AddMember("user-extra", "Latecomer");
 
         Assert.Null(overflow);
     }
@@ -49,56 +50,102 @@ public class RoomTests
     {
         Room room = CreateStartedRoom();
 
-        Assert.Null(room.AddMember("conn-late", "Latecomer"));
-    }
-
-    [Fact]
-    public void RemoveMember_InLobby_RemovesTheMember()
-    {
-        Room room = new("ABCD");
-        room.AddMember("conn-1", "Jeff");
-
-        bool removed = room.RemoveMember("conn-1");
-
-        Assert.True(removed);
-        Assert.Null(room.FindMember("conn-1"));
-    }
-
-    [Fact]
-    public void RemoveMember_UnknownConnection_ReturnsFalse()
-    {
-        Room room = new("ABCD");
-        room.AddMember("conn-1", "Jeff");
-
-        Assert.False(room.RemoveMember("conn-unknown"));
+        Assert.Null(room.AddMember("user-late", "Latecomer"));
     }
 
     [Fact]
     public void SetReady_TogglesTheStoredMember()
     {
         Room room = new("ABCD");
-        room.AddMember("conn-1", "Jeff");
+        room.AddMember("user-1", "Jeff");
 
-        bool set = room.SetReady("conn-1", true);
+        bool set = room.SetReady("user-1", true);
 
         Assert.True(set);
-        Assert.True(room.FindMember("conn-1")!.IsReady);
+        Assert.True(room.FindMember("user-1")!.IsReady);
     }
 
     [Fact]
-    public void SetReady_UnknownConnection_ReturnsFalse()
+    public void SetReady_UnknownUser_ReturnsFalse()
     {
         Room room = new("ABCD");
 
-        Assert.False(room.SetReady("conn-unknown", true));
+        Assert.False(room.SetReady("user-unknown", true));
+    }
+
+    [Fact]
+    public void MarkDisconnected_KeepsTheSeatButFlagsItAway()
+    {
+        Room room = new("ABCD");
+        room.AddMember("user-1", "Jeff");
+
+        RoomMember? member = room.MarkDisconnected("user-1");
+
+        Assert.NotNull(member);
+        Assert.False(member.IsConnected);
+        Assert.Same(member, room.FindMember("user-1"));
+    }
+
+    [Fact]
+    public void MarkDisconnected_UnknownUser_ReturnsNull()
+    {
+        Room room = new("ABCD");
+
+        Assert.Null(room.MarkDisconnected("user-unknown"));
+    }
+
+    [Fact]
+    public void MarkConnected_ReclaimsAnAwaySeat()
+    {
+        Room room = new("ABCD");
+        room.AddMember("user-1", "Jeff");
+        room.MarkDisconnected("user-1");
+
+        RoomMember? member = room.MarkConnected("user-1");
+
+        Assert.NotNull(member);
+        Assert.True(member.IsConnected);
+    }
+
+    [Fact]
+    public void Room_IsAbandoned_OnlyOnceEveryMemberIsAwayAndPastTheCutoff()
+    {
+        FakeTimeProvider time = new();
+        Room room = new("ABCD", timeProvider: time);
+        room.AddMember("user-1", "Jeff");
+        room.AddMember("user-2", "Ann");
+
+        room.MarkDisconnected("user-1");
+        Assert.False(room.IsAbandonedSince(time.GetUtcNow()));
+
+        room.MarkDisconnected("user-2");
+        DateTimeOffset wentIdle = time.GetUtcNow();
+        time.Advance(TimeSpan.FromMinutes(31));
+
+        Assert.False(room.IsAbandonedSince(wentIdle - TimeSpan.FromMinutes(1)));
+        Assert.True(room.IsAbandonedSince(time.GetUtcNow() - TimeSpan.FromMinutes(30)));
+    }
+
+    [Fact]
+    public void Room_Reconnecting_ClearsTheAbandonedClock()
+    {
+        FakeTimeProvider time = new();
+        Room room = new("ABCD", timeProvider: time);
+        room.AddMember("user-1", "Jeff");
+        room.MarkDisconnected("user-1");
+        time.Advance(TimeSpan.FromHours(1));
+
+        room.MarkConnected("user-1");
+
+        Assert.False(room.IsAbandonedSince(time.GetUtcNow()));
     }
 
     [Fact]
     public void StartGame_WhenAllReadyAndEnoughPlayers_BeginsTheGame()
     {
         Room room = new("ABCD");
-        AddReadyMember(room, "conn-1", "Jeff");
-        AddReadyMember(room, "conn-2", "Ann");
+        AddReadyMember(room, "user-1", "Jeff");
+        AddReadyMember(room, "user-2", "Ann");
 
         bool started = room.StartGame();
 
@@ -111,7 +158,7 @@ public class RoomTests
     public void StartGame_WithFewerThanMinPlayers_ReturnsFalseAndStaysInLobby()
     {
         Room room = new("ABCD");
-        AddReadyMember(room, "conn-1", "Jeff");
+        AddReadyMember(room, "user-1", "Jeff");
 
         bool started = room.StartGame();
 
@@ -124,8 +171,8 @@ public class RoomTests
     public void StartGame_WhenNotEveryoneIsReady_ReturnsFalseAndStaysInLobby()
     {
         Room room = new("ABCD");
-        AddReadyMember(room, "conn-1", "Jeff");
-        room.AddMember("conn-2", "Ann");   // joined but not ready
+        AddReadyMember(room, "user-1", "Jeff");
+        room.AddMember("user-2", "Ann");
 
         bool started = room.StartGame();
 
@@ -143,20 +190,47 @@ public class RoomTests
     }
 
     [Fact]
-    public void TryPlayCard_WhenStillInLobby_ReturnsFalse()
+    public void StartGame_WhenAReadyMemberIsAway_ReturnsFalseAndStaysInLobby()
     {
         Room room = new("ABCD");
-        room.AddMember("conn-1", "Jeff");
+        AddReadyMember(room, "user-1", "Jeff");
+        AddReadyMember(room, "user-2", "Ann");
+        room.MarkDisconnected("user-2");
 
-        Assert.False(room.TryPlayCard("conn-1", new Card(Suit.Hearts, Rank.Two)));
+        bool started = room.StartGame();
+
+        Assert.False(started);
+        Assert.Equal(RoomState.Lobby, room.State);
     }
 
     [Fact]
-    public void TryPlayCard_FromAnUnknownConnection_ReturnsFalse()
+    public void StartGame_AfterAnAwayMemberReconnects_BeginsTheGame()
+    {
+        Room room = new("ABCD");
+        AddReadyMember(room, "user-1", "Jeff");
+        AddReadyMember(room, "user-2", "Ann");
+        room.MarkDisconnected("user-2");
+        room.MarkConnected("user-2");
+
+        Assert.True(room.StartGame());
+        Assert.Equal(RoomState.InProgress, room.State);
+    }
+
+    [Fact]
+    public void TryPlayCard_WhenStillInLobby_ReturnsFalse()
+    {
+        Room room = new("ABCD");
+        room.AddMember("user-1", "Jeff");
+
+        Assert.False(room.TryPlayCard("user-1", new Card(Suit.Hearts, Rank.Two)));
+    }
+
+    [Fact]
+    public void TryPlayCard_FromAnUnknownUser_ReturnsFalse()
     {
         Room room = CreateStartedRoom();
 
-        Assert.False(room.TryPlayCard("conn-unknown", new Card(Suit.Hearts, Rank.Two)));
+        Assert.False(room.TryPlayCard("user-unknown", new Card(Suit.Hearts, Rank.Two)));
     }
 
     [Fact]
@@ -168,20 +242,18 @@ public class RoomTests
         int leaderIndex = game.CurrentMichiganRound!.CurrentLeaderIndex;
         Seat leaderSeat = game.CurrentDeal!.Seats[leaderIndex];
 
-        // A legal opening lead is the lowest card of any suit the leader holds; ordering by
-        // suit then rank yields exactly such a card whatever the (random) deal produced.
         Card legalLead = leaderSeat.Hand.Cards.OrderBy(card => card.Suit).ThenBy(card => card.Rank).First();
-        string leaderConnection = room.Members()
-            .First(member => member.Player.Id == leaderSeat.Player.Id).ConnectionId;
+        string leaderUser = room.Members()
+            .First(member => member.Player.Id == leaderSeat.Player.Id).UserId;
 
-        Assert.True(room.TryPlayCard(leaderConnection, legalLead));
+        Assert.True(room.TryPlayCard(leaderUser, legalLead));
     }
 
     [Fact]
     public void AdvanceToNextDeal_WhenStillInLobby_ReturnsFalse()
     {
         Room room = new("ABCD");
-        room.AddMember("conn-1", "Jeff");
+        room.AddMember("user-1", "Jeff");
 
         Assert.False(room.AdvanceToNextDeal());
         Assert.Equal(RoomState.Lobby, room.State);
@@ -268,16 +340,16 @@ public class RoomTests
     private static Room CreateStartedRoom(Random? random)
     {
         Room room = new("ABCD", random);
-        AddReadyMember(room, "conn-1", "Jeff");
-        AddReadyMember(room, "conn-2", "Ann");
+        AddReadyMember(room, "user-1", "Jeff");
+        AddReadyMember(room, "user-2", "Ann");
         room.StartGame();
         return room;
     }
 
-    private static void AddReadyMember(Room room, string connectionId, string name)
+    private static void AddReadyMember(Room room, string userId, string name)
     {
-        room.AddMember(connectionId, name);
-        room.SetReady(connectionId, true);
+        room.AddMember(userId, name);
+        room.SetReady(userId, true);
     }
 
     private static void PlayOutRound(Room room)
@@ -285,12 +357,12 @@ public class RoomTests
         Game game = room.Game!;
         while (game.GamePhase == GamePhase.MichiganRummyInProgress)
         {
-            (string connectionId, Card card) = NextLegalMove(room, game);
-            Assert.True(room.TryPlayCard(connectionId, card));
+            (string userId, Card card) = NextLegalMove(room, game);
+            Assert.True(room.TryPlayCard(userId, card));
         }
     }
 
-    private static (string ConnectionId, Card Card) NextLegalMove(Room room, Game game)
+    private static (string UserId, Card Card) NextLegalMove(Room room, Game game)
     {
         MichiganRound round = game.CurrentMichiganRound!;
         IReadOnlyList<Seat> seats = game.CurrentDeal!.Seats;
@@ -299,7 +371,7 @@ public class RoomTests
         {
             Card next = new(last.Suit, last.Rank + 1);
             Seat holder = seats.First(seat => seat.Hand.Cards.Contains(next));
-            return (ConnectionOf(room, holder), next);
+            return (UserIdOf(room, holder), next);
         }
 
         Seat leader = seats[round.CurrentLeaderIndex];
@@ -307,9 +379,9 @@ public class RoomTests
             ? leader.Hand.Cards.Where(card => card.Suit != stop.Suit)
             : leader.Hand.Cards;
         Card lead = candidates.OrderBy(card => card.Suit).ThenBy(card => card.Rank).First();
-        return (ConnectionOf(room, leader), lead);
+        return (UserIdOf(room, leader), lead);
     }
 
-    private static string ConnectionOf(Room room, Seat seat) =>
-        room.Members().First(member => member.Player.Id == seat.Player.Id).ConnectionId;
+    private static string UserIdOf(Room room, Seat seat) =>
+        room.Members().First(member => member.Player.Id == seat.Player.Id).UserId;
 }

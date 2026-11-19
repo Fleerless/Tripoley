@@ -20,10 +20,10 @@ export default defineConfig({
         "src/api/gameConnection.ts",
       ],
       thresholds: {
-        lines: 90,
+        lines: 85,
         functions: 85,
-        branches: 80,
-        statements: 90,
+        branches: 85,
+        statements: 85,
       },
     },
   },

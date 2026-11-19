@@ -1,0 +1,20 @@
+<Project>
+
+  <!-- Single source of truth for the test coverage policy. Each test
+       project only declares WHAT it measures (Include/Exclude); the gate
+       itself (format, 85% line floor, how it is enforced) lives here. -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
+    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
+    <Threshold>85</Threshold>
+    <ThresholdType>line</ThresholdType>
+    <ThresholdStat>total</ThresholdStat>
+  </PropertyGroup>
+
+  <ItemGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
+    <PackageReference Include="coverlet.msbuild" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

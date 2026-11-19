@@ -1,6 +1,8 @@
 bin/
 obj/
 TestResults/
+coverage.cobertura.xml
+coverage-report/
 
 .claude/settings.local.json
 .vscode/
@@ -8,6 +10,7 @@ TestResults/
 
 AGENTS.md
 CLAUDE.md
+dry-solid-review.md
 
 # editor swap files
 *.swp
