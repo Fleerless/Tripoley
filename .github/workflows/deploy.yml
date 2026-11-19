@@ -81,9 +81,31 @@ jobs:
             --environment-name "${{ vars.EB_ENVIRONMENT_NAME }}" \
             --version-label "$VERSION"
 
-          # Block until the environment finishes updating and reports Ready.
+          # Block until the environment finishes updating. NOTE: this also returns
+          # after a ROLLBACK (the env is Ready again), so on its own it does NOT
+          # mean the new version deployed.
           aws elasticbeanstalk wait environment-updated \
             --environment-names "${{ vars.EB_ENVIRONMENT_NAME }}"
+
+          # Confirm the target version is actually live and the env is not Red
+          # before we go on to ship the web client. A failed deploy (e.g. the
+          # container crashes on boot) rolls back to the old version; without this
+          # check the job would "succeed" and ship new web against the old API.
+          LIVE=$(aws elasticbeanstalk describe-environments \
+            --environment-names "${{ vars.EB_ENVIRONMENT_NAME }}" \
+            --query 'Environments[0].VersionLabel' --output text)
+          HEALTH=$(aws elasticbeanstalk describe-environments \
+            --environment-names "${{ vars.EB_ENVIRONMENT_NAME }}" \
+            --query 'Environments[0].Health' --output text)
+          if [ "$LIVE" != "$VERSION" ]; then
+            echo "::error::Deploy rolled back: environment is on '$LIVE', not '$VERSION'. Aborting before the web deploy."
+            exit 1
+          fi
+          if [ "$HEALTH" = "Red" ]; then
+            echo "::error::Environment is Red after deploying '$VERSION'. Aborting before the web deploy."
+            exit 1
+          fi
+          echo "Promoted and verified: environment is on $VERSION (health $HEALTH)."
 
       # ---- Web client (still built per env: VITE_HUB_URL is compiled in) ----
       - name: Setup Node
