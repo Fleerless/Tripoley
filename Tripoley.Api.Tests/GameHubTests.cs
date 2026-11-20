@@ -319,4 +319,75 @@ public class GameHubTests
         Assert.NotEmpty(alice.Hand);
         Assert.NotEmpty(bob.Hand);
     }
+
+    [Fact]
+    public async Task LeaveRoom_WhenNotInARoom_Throws()
+    {
+        var hub = BuildHub(new InMemoryRoomRegistry(), "nobody", out _, out _);
+
+        await Assert.ThrowsAsync<HubException>(() => hub.LeaveRoom());
+    }
+
+    [Fact]
+    public async Task LeaveRoom_FromALobby_ReturnsTheCallerToTheLobbyGroup()
+    {
+        var registry = new InMemoryRoomRegistry();
+        var room = registry.Create();
+        room.AddMember("c0", "Alice");
+        room.AddMember("c1", "Bob");
+        var hub = BuildHub(registry, "c1", out var clients, out var groups);
+
+        await hub.LeaveRoom();
+
+        Assert.Null(room.FindMember("c1"));
+        await groups.Received().RemoveFromGroupAsync("c1", room.Code, Arg.Any<CancellationToken>());
+        await groups.Received().AddToGroupAsync("c1", LobbyGroup, Arg.Any<CancellationToken>());
+        var open = LastMessage<IReadOnlyList<OpenRoomView>>(clients.Caller, ClientEvents.OpenRoomsUpdated);
+        Assert.NotNull(open);
+    }
+
+    [Fact]
+    public async Task LeaveRoom_DuringALiveGame_MovesTheCallerToTheLobbyAndShowsTheSeatLeftToTheOthers()
+    {
+        var registry = new InMemoryRoomRegistry();
+        Room room = ThreePlayerStartedRoom(registry);
+        var hub = BuildHub(registry, "c0", out var clients, out var groups);
+
+        await hub.LeaveRoom();
+
+        Assert.Null(room.FindMember("c0"));
+        await groups.Received().RemoveFromGroupAsync("c0", room.Code, Arg.Any<CancellationToken>());
+        await groups.Received().AddToGroupAsync("c0", LobbyGroup, Arg.Any<CancellationToken>());
+        GameStateView state = LastMessage<GameStateView>(clients.Group(room.Code), ClientEvents.GameStateUpdated);
+        Assert.Equal(SeatPresence.Abandoned, state.Seats[0].Presence);
+    }
+
+    [Fact]
+    public async Task LeaveRoom_WhenOnlyOnePlayerRemains_BroadcastsTheCompletedGame()
+    {
+        var registry = new InMemoryRoomRegistry();
+        Room room = StartedRoom(registry);
+        var hub = BuildHub(registry, "c0", out var clients, out _);
+
+        await hub.LeaveRoom();
+
+        Assert.Null(room.FindMember("c0"));
+        Assert.Equal(RoomState.Completed, room.State);
+        GameStateView state = LastMessage<GameStateView>(clients.Group(room.Code), ClientEvents.GameStateUpdated);
+        Assert.Equal(GamePhase.GameComplete, state.Phase);
+        RoomView lobby = LastMessage<RoomView>(clients.Group(room.Code), ClientEvents.LobbyUpdated);
+        Assert.Equal(RoomState.Completed, lobby.State);
+    }
+
+    private static Room ThreePlayerStartedRoom(IRoomRegistry registry)
+    {
+        var room = registry.Create();
+        foreach ((string id, string name) in new[] { ("c0", "Alice"), ("c1", "Bob"), ("c2", "Cara") })
+        {
+            room.AddMember(id, name);
+            room.SetReady(id, true);
+        }
+        Assert.True(room.StartGame());
+        return room;
+    }
 }

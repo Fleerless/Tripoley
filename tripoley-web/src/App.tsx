@@ -7,6 +7,11 @@ export default function App() {
   const game = useGame();
   const next = game.gameState?.nextCard ?? null;
 
+  const handleLeave = () => {
+    if (!window.confirm("Leave the game?")) return;
+    void game.leaveRoom();
+  };
+
   if (game.room === null) {
     return (
       <div className="app">
@@ -30,19 +35,15 @@ export default function App() {
       <div className="sign">Tripoley</div>
       <Table game={game} />
       <div className="statusbar">
+        <button className="leave-btn" onClick={handleLeave}>
+          Leave
+        </button>
         <span>{game.connected ? "connected" : "connecting…"}</span>
         {game.gameState && (
           <span>
             {game.gameState.roundPhase ?? "—"}
             {game.gameState.roundPhase === "RunStopped" && " — run stopped; new suit"}
             {next && ` · next: ${next.rank} of ${next.suit}`}
-          </span>
-        )}
-        {game.gameState?.lastRoundWinner && (
-          <span className="status-win">
-            {game.gameState.lastRoundWinner === "Draw"
-              ? "last hand: draw — no one could play"
-              : `last hand won by: ${game.gameState.lastRoundWinner}`}
           </span>
         )}
         {game.error && <span className="status-err">error: {game.error}</span>}

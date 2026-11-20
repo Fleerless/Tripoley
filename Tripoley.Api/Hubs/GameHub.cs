@@ -104,11 +104,28 @@ public sealed class GameHub(IRoomRegistry roomRegistry, ILogger<GameHub> logger)
         await BroadcastGameState(room);
 
         if (room.AdvanceToNextDeal())
+            await BroadcastGameProgress(room);
+    }
+
+    public async Task LeaveRoom()
+    {
+        var room = roomRegistry.Leave(UserId)
+            ?? throw new HubException("You are not in a room.");
+        logger.LogInformation("User {UserId} left room {RoomCode}.", UserId, room.Code);
+
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, room.Code);
+        await Groups.AddToGroupAsync(Context.ConnectionId, LobbyGroup);
+        await Clients.Caller.SendAsync(ClientEvents.OpenRoomsUpdated, BuildOpenRooms());
+
+        if (room.Members().Count > 0)
         {
-            await BroadcastGameState(room);
-            if (room.State == RoomState.Completed)
+            if (room.Game is not null)
+                await BroadcastGameProgress(room);
+            else
                 await BroadcastLobby(room);
         }
+
+        await BroadcastOpenRooms();
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
@@ -164,12 +181,19 @@ public sealed class GameHub(IRoomRegistry roomRegistry, ILogger<GameHub> logger)
             .Select(room => new OpenRoomView(room.Code, room.Members().Count, Game.MaxPlayerCount))
             .ToList();
 
+    private async Task BroadcastGameProgress(Room room)
+    {
+        await BroadcastGameState(room);
+        if (room.State == RoomState.Completed)
+            await BroadcastLobby(room);
+    }
+
     private async Task BroadcastGameState(Room room)
     {
-        var (state, hands) = room.ReadGame((game, lastWinner, members) =>
+        var (state, hands) = room.ReadGame((game, members) =>
         {
             var connected = members.ToDictionary(member => member.Player.Id, member => member.IsConnected);
-            var stateView = GameStateProjector.ToGameStateView(game, lastWinner, connected);
+            var stateView = GameStateProjector.ToGameStateView(game, connected);
             var handViews = members
                 .Select(member => (member.UserId, View: GameStateProjector.ToSelfView(game, member.Player.Id)))
                 .ToList();

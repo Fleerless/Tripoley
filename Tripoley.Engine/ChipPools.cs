@@ -53,4 +53,28 @@ public class ChipPools
             player.AddChips(chips);
         }
     }
+    public void ClaimAll(Player player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        foreach (ChipPoolType type in Enum.GetValues<ChipPoolType>())
+        {
+            ClaimChips(type, player);
+        }
+    }
+    public void Scatter(int chips)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(chips);
+        if (chips == 0) return;
+
+        ChipPoolType[] types = Enum.GetValues<ChipPoolType>();
+        int baseEach = chips / types.Length;
+        int remainder = chips % types.Length;
+
+        for (int index = 0; index < types.Length; index++)
+        {
+            int amount = baseEach + (index < remainder ? 1 : 0);
+            if (amount > 0) _chipPools[types[index]].AddChips(amount);
+        }
+    }
 }

@@ -30,6 +30,17 @@ public sealed class InMemoryRoomRegistry(TimeProvider? timeProvider = null) : IR
     {
         return _roomByUser.TryGetValue(userId, out var room) ? room : null;
     }
+    public Room? Leave(string userId)
+    {
+        if (!_roomByUser.TryGetValue(userId, out var room)) return null;
+
+        room.Leave(userId);
+
+        _roomByUser.TryRemove(new KeyValuePair<string, Room>(userId, room));
+        if (room.Members().Count == 0)
+            Remove(room.Code);
+        return room;
+    }
     public IReadOnlyList<Room> OpenRooms()
     {
         return _rooms.Values.Where(room => room.State == RoomState.Lobby).ToList();
@@ -53,7 +64,7 @@ public sealed class InMemoryRoomRegistry(TimeProvider? timeProvider = null) : IR
     private void ForgetUsers(Room room)
     {
         foreach (var member in room.Members())
-            _roomByUser.TryRemove(member.UserId, out _);
+            _roomByUser.TryRemove(new KeyValuePair<string, Room>(member.UserId, room));
     }
     private static string GenerateCode()
     {

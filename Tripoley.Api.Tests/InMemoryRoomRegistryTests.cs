@@ -102,6 +102,79 @@ public class InMemoryRoomRegistryTests
     }
 
     [Fact]
+    public void Remove_DoesNotEvictAUserWhoHasSinceMovedToAnotherRoom()
+    {
+        var registry = new InMemoryRoomRegistry();
+        Room first = registry.Create();
+        first.AddMember("user-1", "Jeff");
+
+        // The same user is now registered in a second room, so the by-user index points at the second.
+        Room second = registry.Create();
+        second.AddMember("user-1", "Jeff");
+
+        registry.Remove(first.Code);
+
+        Assert.Same(second, registry.FindByUserId("user-1"));
+    }
+
+    [Fact]
+    public void Leave_UnknownUser_ReturnsNull()
+    {
+        var registry = new InMemoryRoomRegistry();
+
+        Assert.Null(registry.Leave("user-unknown"));
+    }
+
+    [Fact]
+    public void Leave_FromALobbyRoom_FreesTheUserAndDropsTheEmptiedRoom()
+    {
+        var registry = new InMemoryRoomRegistry();
+        Room room = registry.Create();
+        room.AddMember("user-1", "Jeff");
+
+        Room? left = registry.Leave("user-1");
+
+        Assert.Same(room, left);
+        Assert.Null(registry.FindByUserId("user-1"));
+        Assert.Null(registry.Find(room.Code));
+    }
+
+    [Fact]
+    public void Leave_WhenOthersRemain_FreesTheLeaverButKeepsTheRoom()
+    {
+        var registry = new InMemoryRoomRegistry();
+        Room room = registry.Create();
+        room.AddMember("user-1", "Jeff");
+        room.AddMember("user-2", "Ann");
+
+        registry.Leave("user-1");
+
+        Assert.Null(registry.FindByUserId("user-1"));
+        Assert.Same(room, registry.Find(room.Code));
+        Assert.Same(room, registry.FindByUserId("user-2"));
+    }
+
+    [Fact]
+    public void Leave_FromALiveGame_FreesTheLeaverButKeepsTheRoomForTheOthers()
+    {
+        var registry = new InMemoryRoomRegistry();
+        Room room = registry.Create();
+        foreach ((string id, string name) in new[] { ("user-1", "Jeff"), ("user-2", "Ann"), ("user-3", "Cy") })
+        {
+            room.AddMember(id, name);
+            room.SetReady(id, true);
+        }
+        room.StartGame();
+
+        registry.Leave("user-1");
+
+        // The leaver is freed so they can create or join again; the room stays for the remaining players.
+        Assert.Null(registry.FindByUserId("user-1"));
+        Assert.Same(room, registry.Find(room.Code));
+        Assert.Same(room, registry.FindByUserId("user-2"));
+    }
+
+    [Fact]
     public void RemoveIdle_DropsRoomsAbandonedBeforeTheCutoff()
     {
         var time = new FakeTimeProvider();

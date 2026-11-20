@@ -22,6 +22,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     setReady: vi.fn(),
     startGame: vi.fn(),
     playCard: vi.fn(),
+    leaveRoom: vi.fn(),
     ...overrides,
   };
 }

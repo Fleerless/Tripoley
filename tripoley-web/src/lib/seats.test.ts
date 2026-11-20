@@ -3,7 +3,7 @@ import type { PlayerSeatView } from "../api/contracts";
 import { orderFromSelf, partitionSeats, seatPosition } from "./seats";
 
 function seat(seatIndex: number): PlayerSeatView {
-  return { seatIndex, name: `P${seatIndex}`, chipCount: 9, cardsRemaining: 13, isConnected: true };
+  return { seatIndex, name: `P${seatIndex}`, chipCount: 9, cardsRemaining: 13, presence: "Active" };
 }
 
 describe("partitionSeats", () => {

@@ -10,7 +10,6 @@ public sealed record GameStateView(
     CardDto? LastPlayedCard,
     CardDto? NextCard,
     int? WinnerIndex,
-    string? LastRoundWinner,
     IReadOnlyList<PoolView> Pools,
     IReadOnlyList<PlayerSeatView> Seats
 );

@@ -7,7 +7,6 @@ public sealed class Room(string code, Random? random = null, TimeProvider? timeP
     public string Code { get; } = code;
     public RoomState State { get; private set; } = RoomState.Lobby;
     public Game? Game { get; private set; }
-    public string? LastRoundWinner { get; private set; }
 
     public DateTimeOffset? EmptySince { get; private set; }
 
@@ -133,33 +132,56 @@ public sealed class Room(string code, Random? random = null, TimeProvider? timeP
     {
         lock (_lock)
         {
-            if (State != RoomState.InProgress || Game is null) return false;
-            if (Game.GamePhase != GamePhase.WaitingForDeal) return false;
+            return AdvanceToNextDealNoLock();
+        }
+    }
 
-            LastRoundWinner = Game.CurrentMichiganRound?.WinnerIndex is int winner && Game.CurrentDeal is { } finishedDeal
-                ? finishedDeal.Seats[winner].Player.Name
-                : "Draw";
+    private bool AdvanceToNextDealNoLock()
+    {
+        if (State != RoomState.InProgress || Game is null) return false;
+        if (Game.GamePhase != GamePhase.WaitingForDeal) return false;
 
-            Game.StartNewDeal();
-            if (Game.GamePhase == GamePhase.GameComplete)
+        Game.StartNewDeal();
+        if (Game.GamePhase == GamePhase.GameComplete)
+        {
+            State = RoomState.Completed;
+            return true;
+        }
+
+        // We will need to change the starting round when new game phases are added
+        Game.StartMichiganRound();
+        return true;
+    }
+
+    public bool Leave(string userId)
+    {
+        lock (_lock)
+        {
+            var member = FindMemberNoLock(userId);
+            if (member is null) return false;
+
+            if (State == RoomState.InProgress && Game is not null && !Game.IsAbandoned(member.Player.Id))
             {
-                State = RoomState.Completed;
-                return true;
+                Game.Abandon(member.Player.Id);
+                if (Game.GamePhase == GamePhase.GameComplete)
+                    State = RoomState.Completed;
+                else if (Game.GamePhase == GamePhase.WaitingForDeal)
+                    AdvanceToNextDealNoLock();
             }
 
-            // We will need to change the starting round when new game phases are added
-            Game.StartMichiganRound();
+            _members.Remove(member);
+            RefreshEmptySince();
             return true;
         }
     }
 
     // Keep `read` CPU-only: no I/O, so the lock is never held across an await.
-    public T ReadGame<T>(Func<Game, string?, IReadOnlyList<RoomMember>, T> read)
+    public T ReadGame<T>(Func<Game, IReadOnlyList<RoomMember>, T> read)
     {
         lock (_lock)
         {
             if (Game is null) throw new InvalidOperationException("No game in progress.");
-            return read(Game, LastRoundWinner, _members);
+            return read(Game, _members);
         }
     }
 
