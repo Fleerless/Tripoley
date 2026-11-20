@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.4](https://github.com/Fleerless/Tripoley/compare/v0.1.3...v0.1.4) (2026-11-20)
+
+
+### Features
+
+* add leave game button with server-authoritative abandon ([feb1361](https://github.com/Fleerless/Tripoley/commit/feb13615507785060ea4c6156b3daaad18c1ca36))
+* add leave game button with server-authoritative abandon ([765a5bb](https://github.com/Fleerless/Tripoley/commit/765a5bb372df75f80eb19477b2120c8281fa3cd5)), closes [#43](https://github.com/Fleerless/Tripoley/issues/43)
+
 ## [0.1.3](https://github.com/Fleerless/Tripoley/compare/v0.1.2...v0.1.3) (2026-11-19)
 
 
