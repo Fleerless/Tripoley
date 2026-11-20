@@ -69,4 +69,26 @@ public class ChipPoolsTests
 
         Assert.All(Enum.GetValues<ChipPoolType>(), type => Assert.Equal(2, pools.Get(type).ChipCount));
     }
+    [Fact]
+    public void Scatter_SpreadsChipsEvenlyWithTheRemainderOnTheFirstPools()
+    {
+        ChipPools pools = new ChipPools();
+
+        // 91 chips across the nine pools: 10 each, with the single leftover chip on the first pool.
+        pools.Scatter(91);
+
+        ChipPoolType[] types = Enum.GetValues<ChipPoolType>();
+        Assert.Equal(11, pools.Get(types[0]).ChipCount);
+        Assert.All(types.Skip(1), type => Assert.Equal(10, pools.Get(type).ChipCount));
+        Assert.Equal(91, types.Sum(type => pools.Get(type).ChipCount));
+    }
+    [Fact]
+    public void Scatter_WithZero_LeavesEveryPoolEmpty()
+    {
+        ChipPools pools = new ChipPools();
+
+        pools.Scatter(0);
+
+        Assert.All(Enum.GetValues<ChipPoolType>(), type => Assert.Equal(0, pools.Get(type).ChipCount));
+    }
 }

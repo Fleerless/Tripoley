@@ -14,17 +14,19 @@ interface SeatProps {
 const sameCard = (a: CardDto, b: CardDto) => a.suit === b.suit && a.rank === b.rank;
 
 export function Seat({ seat, isSelf, isTurn, position, hand, legalPlays = [], onPlay }: SeatProps) {
+  const active = seat.presence === "Active";
   return (
     <div
-      className={`seat${isTurn ? " active" : ""}${seat.isConnected ? "" : " away"}`}
+      className={`seat${isTurn ? " active" : ""}${active ? "" : " away"}`}
       style={{ left: position.left, top: position.top }}
     >
       <div className="nameplate">
         <div className="seat-name">
-          <span className={`conn-dot${seat.isConnected ? " online" : ""}`} />
+          <span className={`conn-dot${active ? " online" : ""}`} />
           {seat.name}
           {isSelf ? " (you)" : ""}
-          {seat.isConnected ? null : <span className="seat-away-tag">away</span>}
+          {seat.presence === "Abandoned" && <span className="seat-away-tag">left</span>}
+          {seat.presence === "Away" && <span className="seat-away-tag">away</span>}
         </div>
         <div className="seat-chips">
           <span className="chip-stack">

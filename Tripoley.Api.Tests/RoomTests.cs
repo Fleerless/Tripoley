@@ -335,6 +335,71 @@ public class RoomTests
         }
     }
 
+    [Fact]
+    public void Leave_UnknownUser_ReturnsFalse()
+    {
+        Room room = new("ABCD");
+
+        Assert.False(room.Leave("user-unknown"));
+    }
+
+    [Fact]
+    public void Leave_WhileStillInTheLobby_RemovesTheMember()
+    {
+        Room room = new("ABCD");
+        room.AddMember("user-1", "Jeff");
+        room.AddMember("user-2", "Ann");
+
+        bool left = room.Leave("user-1");
+
+        Assert.True(left);
+        Assert.Null(room.FindMember("user-1"));
+        Assert.Single(room.Members());
+        Assert.Equal(RoomState.Lobby, room.State);
+    }
+
+    [Fact]
+    public void Leave_DuringALiveGame_AbandonsTheSeatAndRemovesTheMember()
+    {
+        Room room = CreateThreePlayerRoom();
+        Guid leaverId = room.FindMember("user-1")!.Player.Id;
+
+        bool left = room.Leave("user-1");
+
+        Assert.True(left);
+        Assert.Null(room.FindMember("user-1"));
+        Assert.Equal(RoomState.InProgress, room.State);
+        Assert.Equal(GamePhase.MichiganRummyInProgress, room.Game!.GamePhase);
+        // The engine still marks the seat so the remaining players see it as "left".
+        Assert.True(room.Game.IsAbandoned(leaverId));
+    }
+
+    [Fact]
+    public void Leave_WhenOnlyOnePlayerRemains_CompletesViaWalkoverAndSweepsPoolsToTheSurvivor()
+    {
+        Room room = CreateStartedRoom();
+        Player survivor = room.FindMember("user-2")!.Player;
+
+        bool left = room.Leave("user-1");
+
+        Assert.True(left);
+        Assert.Equal(RoomState.Completed, room.State);
+        Assert.Equal(GamePhase.GameComplete, room.Game!.GamePhase);
+        // Leaver forfeits their 91-chip stack into the pools (18 + 91 = 109); the survivor sweeps it all.
+        Assert.Equal(200, survivor.ChipCount);
+        Assert.All(Enum.GetValues<ChipPoolType>(), type => Assert.Equal(0, room.Game.Pools.Get(type).ChipCount));
+    }
+
+    private static Room CreateThreePlayerRoom(Random? random = null)
+    {
+        Room room = new("ABCD", random);
+        AddReadyMember(room, "user-1", "Jeff");
+        AddReadyMember(room, "user-2", "Ann");
+        AddReadyMember(room, "user-3", "Cy");
+        room.StartGame();
+        return room;
+    }
+
     private static Room CreateStartedRoom() => CreateStartedRoom(random: null);
 
     private static Room CreateStartedRoom(Random? random)

@@ -5,7 +5,7 @@ using Tripoley.Api.Contracts;
 
 public static class GameStateProjector
 {
-    public static GameStateView ToGameStateView(Game game, string? lastRoundWinner = null,
+    public static GameStateView ToGameStateView(Game game,
         IReadOnlyDictionary<Guid, bool>? connectedByPlayerId = null)
     {
         var pools = Enum.GetValues<ChipPoolType>().Select(type => new PoolView(type, game.Pools.Get(type).ChipCount)).ToList();
@@ -14,7 +14,7 @@ public static class GameStateProjector
             ? []
             : game.CurrentDeal.Seats.Select((seat, index) => new PlayerSeatView(
                 index, seat.Player.Name, seat.Player.ChipCount, seat.Hand.CardsRemaining,
-                connectedByPlayerId?.GetValueOrDefault(seat.Player.Id, false) ?? false)).ToList();
+                PresenceOf(game, seat.Player.Id, connectedByPlayerId))).ToList();
 
         return new GameStateView(
             game.GamePhase,
@@ -24,9 +24,16 @@ public static class GameStateProjector
             round?.LastPlayedCard is { } card ? ToCardDto(card) : null,
             NextCard(round),
             round?.WinnerIndex,
-            lastRoundWinner,
             pools,
             seats);
+    }
+
+    private static SeatPresence PresenceOf(Game game, Guid playerId, IReadOnlyDictionary<Guid, bool>? connectedByPlayerId)
+    {
+        if (game.IsAbandoned(playerId)) return SeatPresence.Abandoned;
+        return connectedByPlayerId?.GetValueOrDefault(playerId, false) == true
+            ? SeatPresence.Active
+            : SeatPresence.Away;
     }
 
     private static int? CurrentTurnSeat(MichiganRound? round, Deal? deal)

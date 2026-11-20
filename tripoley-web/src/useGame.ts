@@ -23,6 +23,7 @@ export interface Game {
   setReady: (isReady: boolean) => Promise<void>;
   startGame: () => Promise<void>;
   playCard: (card: CardDto) => Promise<void>;
+  leaveRoom: () => Promise<void>;
 }
 
 export function useGame(): Game {
@@ -145,5 +146,9 @@ export function useGame(): Game {
     [call],
   );
 
-  return { connected, room, gameState, hand, openRooms, error, createRoom, joinRoom, setReady, startGame, playCard };
+  const leaveRoom = useCallback(async () => {
+    await call((c) => c.invoke(HubMethods.LeaveRoom));
+  }, [call]);
+
+  return { connected, room, gameState, hand, openRooms, error, createRoom, joinRoom, setReady, startGame, playCard, leaveRoom };
 }

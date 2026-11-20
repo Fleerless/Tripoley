@@ -78,13 +78,13 @@ public sealed class GameHubIntegrationTests : IDisposable
         await WaitUntil(() => bob.LatestState?.Phase == GamePhase.MichiganRummyInProgress);
 
         await alice.Connection.DisposeAsync();
-        await WaitUntil(() => bob.LatestState!.Seats.Single(seat => seat.Name == "Alice").IsConnected == false);
+        await WaitUntil(() => bob.LatestState!.Seats.Single(seat => seat.Name == "Alice").Presence == SeatPresence.Away);
 
         await using TestClient reconnected = await ConnectAsync(aliceId);
         await WaitUntil(() => reconnected.LatestState?.Phase == GamePhase.MichiganRummyInProgress);
         await WaitUntil(() => reconnected.LatestHand is { Hand.Count: > 0 });
 
-        await WaitUntil(() => bob.LatestState!.Seats.Single(seat => seat.Name == "Alice").IsConnected);
+        await WaitUntil(() => bob.LatestState!.Seats.Single(seat => seat.Name == "Alice").Presence == SeatPresence.Active);
     }
 
     [Fact]

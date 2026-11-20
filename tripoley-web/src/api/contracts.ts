@@ -11,6 +11,8 @@ export type RoomState = "Lobby" | "InProgress" | "Completed";
 
 export type RoundPhase = "AwaitingOpeningLead" | "RunInProgress" | "RunStopped" | "RoundComplete";
 
+export type SeatPresence = "Active" | "Away" | "Abandoned";
+
 export type Suit = "Clubs" | "Diamonds" | "Hearts" | "Spades";
 
 export interface CardDto {
@@ -26,7 +28,6 @@ export interface GameStateView {
   lastPlayedCard: CardDto | null;
   nextCard: CardDto | null;
   winnerIndex: number | null;
-  lastRoundWinner: string | null;
   pools: PoolView[];
   seats: PlayerSeatView[];
 }
@@ -42,7 +43,7 @@ export interface PlayerSeatView {
   name: string;
   chipCount: number;
   cardsRemaining: number;
-  isConnected: boolean;
+  presence: SeatPresence;
 }
 
 export interface PoolView {
@@ -79,6 +80,7 @@ export const ServerEvents = {
 export const HubMethods = {
   CreateRoom: "CreateRoom",
   JoinRoom: "JoinRoom",
+  LeaveRoom: "LeaveRoom",
   PlayCard: "PlayCard",
   SetReady: "SetReady",
   StartGame: "StartGame",

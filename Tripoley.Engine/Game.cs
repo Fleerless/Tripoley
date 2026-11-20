@@ -14,6 +14,7 @@ public class Game
 {
     private readonly Dictionary<Guid, Player> _players;
     private readonly List<Guid> _seatOrder;
+    private readonly HashSet<Guid> _abandoned = [];
     private readonly Random _random;
     private Guid _dealerId;
     public Deal? CurrentDeal { get; private set; }
@@ -48,7 +49,7 @@ public class Game
 
         var eligible = _seatOrder
             .Select(id => _players[id])
-            .Where(p => p.ChipCount >= Pools.AnteCost)
+            .Where(p => p.ChipCount >= Pools.AnteCost && !_abandoned.Contains(p.Id))
             .ToList();
 
         if (eligible.Count < MinPlayerCount)
@@ -122,6 +123,77 @@ public class Game
             GamePhase = GamePhase.WaitingForDeal;
         }
         return played;
+    }
+
+    public bool IsAbandoned(Guid playerId) => _abandoned.Contains(playerId);
+
+    public void Abandon(Guid playerId)
+    {
+        if (GamePhase == GamePhase.GameComplete) return;
+
+        _abandoned.Add(playerId);
+        DiscardHandToWidow(playerId);
+        ForfeitChipsToPools(playerId);
+
+        bool roundWasLive = GamePhase == GamePhase.MichiganRummyInProgress;
+        if (roundWasLive)
+        {
+            CurrentMichiganRound!.ReevaluateAfterAbandon();
+        }
+
+        var remaining = RemainingPlayers();
+        if (remaining.Count <= 1)
+        {
+            CompleteGame(remaining.Count == 1 ? remaining[0] : null);
+            return;
+        }
+
+        if (roundWasLive && CurrentMichiganRound!.Phase == RoundPhase.RoundComplete)
+        {
+            SettleMichiganRound();
+            GamePhase = GamePhase.WaitingForDeal;
+        }
+    }
+
+    // Today the sole remaining player takes the layout. When the Poker phase exists this is where the
+    // final showdown awards the leftover pools instead; keep the sweep behind AwardAllPoolsTo either way.
+    private void CompleteGame(Player? winner)
+    {
+        if (winner is not null) AwardAllPoolsTo(winner);
+        GamePhase = GamePhase.GameComplete;
+    }
+
+    public void AwardAllPoolsTo(Player player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+        Pools.ClaimAll(player);
+    }
+
+    private List<Player> RemainingPlayers() =>
+        _seatOrder.Select(id => _players[id]).Where(p => !_abandoned.Contains(p.Id)).ToList();
+
+    private void ForfeitChipsToPools(Guid playerId)
+    {
+        Player player = _players[playerId];
+        int chips = player.ChipCount;
+        if (chips <= 0) return;
+
+        player.TryRemoveChips(chips);
+        Pools.Scatter(chips);
+    }
+
+    private void DiscardHandToWidow(Guid playerId)
+    {
+        if (CurrentDeal is not { } deal) return;
+
+        Seat? seat = deal.Seats.FirstOrDefault(s => s.Player.Id == playerId);
+        if (seat is null) return;
+
+        foreach (Card card in seat.Hand.Cards.ToList())
+        {
+            seat.Hand.TryRemoveCard(card);
+            deal.Widow.AddCard(card);
+        }
     }
 
     private static void CollectPerCard(Player payer, int cardCount, Action<int> deposit)

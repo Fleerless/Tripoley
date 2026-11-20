@@ -19,6 +19,7 @@ public class MichiganRound
 
     public int CurrentLeaderIndex { get; private set; }
     public Card? LastPlayedCard { get; private set; }
+    public int? LastPlayerIndex { get; private set; }
     public int? WinnerIndex { get; private set; }
     public RoundPhase Phase { get; private set; } = RoundPhase.AwaitingOpeningLead;
 
@@ -44,6 +45,7 @@ public class MichiganRound
     private void AdvanceAfterPlay(int playerIndex, Card playedCard)
     {
         LastPlayedCard = playedCard;
+        LastPlayerIndex = playerIndex;
         if (CompleteIfHandEmpty(playerIndex))
         {
             return;
@@ -73,6 +75,84 @@ public class MichiganRound
         {
             Phase = RoundPhase.RunInProgress;
         }
+    }
+
+    public void ReevaluateAfterAbandon()
+    {
+        switch (Phase)
+        {
+            case RoundPhase.AwaitingOpeningLead:
+                ReseatOpeningLeaderIfNeeded();
+                break;
+            case RoundPhase.RunInProgress:
+                ReevaluateRunInProgress();
+                break;
+            case RoundPhase.RunStopped:
+                ReseatStoppedLeaderIfNeeded();
+                break;
+        }
+    }
+    private void ReseatOpeningLeaderIfNeeded()
+    {
+        if (HasCards(CurrentLeaderIndex))
+        {
+            return;
+        }
+        if (FindSeatFrom(CurrentLeaderIndex, HasCards, out int nextLeaderIndex))
+        {
+            CurrentLeaderIndex = nextLeaderIndex;
+        }
+        else
+        {
+            Phase = RoundPhase.RoundComplete;
+        }
+    }
+    private void ReevaluateRunInProgress()
+    {
+        if (LastPlayedCard is not { } lastCard || !RunEngine.IsRunStopped(lastCard, _hands))
+        {
+            return;
+        }
+        PassLeadAfterStop(LastPlayerIndex ?? CurrentLeaderIndex, lastCard.Suit);
+    }
+    private void ReseatStoppedLeaderIfNeeded()
+    {
+        if (LastPlayedCard is not { } lastCard)
+        {
+            return;
+        }
+        if (RunEngine.CanLeadAfterStop(_hands[CurrentLeaderIndex], lastCard.Suit))
+        {
+            return;
+        }
+        PassLeadAfterStop(CurrentLeaderIndex, lastCard.Suit);
+    }
+    private void PassLeadAfterStop(int fromIndex, Suit previousSuit)
+    {
+        if (FindSeatFrom(fromIndex, index => RunEngine.CanLeadAfterStop(_hands[index], previousSuit), out int nextLeaderIndex))
+        {
+            CurrentLeaderIndex = nextLeaderIndex;
+            Phase = RoundPhase.RunStopped;
+        }
+        else
+        {
+            Phase = RoundPhase.RoundComplete;
+        }
+    }
+    private bool HasCards(int seatIndex) => _hands[seatIndex].CardsRemaining > 0;
+    private bool FindSeatFrom(int startIndex, Func<int, bool> canLead, out int seatIndex)
+    {
+        for (int offset = 0; offset < _hands.Count; offset++)
+        {
+            int candidate = (startIndex + offset) % _hands.Count;
+            if (canLead(candidate))
+            {
+                seatIndex = candidate;
+                return true;
+            }
+        }
+        seatIndex = default;
+        return false;
     }
     private bool CompleteIfHandEmpty(int playerIndex)
     {

@@ -22,7 +22,7 @@ public class GameStateProjectorTests
     }
 
     [Fact]
-    public void ToGameStateView_MarksSeatsWithTheirConnectionStatus()
+    public void ToGameStateView_MarksConnectedSeatsActiveAndDisconnectedSeatsAway()
     {
         Game game = StartedGame(out Player[] players);
         var connected = new Dictionary<Guid, bool>
@@ -33,18 +33,32 @@ public class GameStateProjectorTests
 
         GameStateView view = GameStateProjector.ToGameStateView(game, connectedByPlayerId: connected);
 
-        Assert.True(view.Seats.First(seat => seat.Name == players[0].Name).IsConnected);
-        Assert.False(view.Seats.First(seat => seat.Name == players[1].Name).IsConnected);
+        Assert.Equal(SeatPresence.Active, view.Seats.First(seat => seat.Name == players[0].Name).Presence);
+        Assert.Equal(SeatPresence.Away, view.Seats.First(seat => seat.Name == players[1].Name).Presence);
     }
 
     [Fact]
-    public void ToGameStateView_WithoutConnectionInfo_DefaultsSeatsToNotConnected()
+    public void ToGameStateView_WithoutConnectionInfo_DefaultsSeatsToAway()
     {
         Game game = StartedGame(out _);
 
         GameStateView view = GameStateProjector.ToGameStateView(game);
 
-        Assert.All(view.Seats, seat => Assert.False(seat.IsConnected));
+        Assert.All(view.Seats, seat => Assert.Equal(SeatPresence.Away, seat.Presence));
+    }
+
+    [Fact]
+    public void ToGameStateView_MarksAbandonedSeatsAbandoned_EvenWhenConnectedInfoIsAbsentOrStale()
+    {
+        Game game = StartedGame(out Player[] players);
+        game.Abandon(players[0].Id);
+        // players[0] abandoned (and no longer a member, so absent from the map); players[1] merely disconnected.
+        var connected = new Dictionary<Guid, bool> { [players[1].Id] = false };
+
+        GameStateView view = GameStateProjector.ToGameStateView(game, connectedByPlayerId: connected);
+
+        Assert.Equal(SeatPresence.Abandoned, view.Seats.First(seat => seat.Name == players[0].Name).Presence);
+        Assert.Equal(SeatPresence.Away, view.Seats.First(seat => seat.Name == players[1].Name).Presence);
     }
 
     [Fact]

@@ -19,8 +19,8 @@ function setViewport(isMobile: boolean) {
 }
 
 const seats: PlayerSeatView[] = [
-  { seatIndex: 0, name: "Alice", chipCount: 9, cardsRemaining: 5, isConnected: false },
-  { seatIndex: 1, name: "Bob", chipCount: 9, cardsRemaining: 2, isConnected: true },
+  { seatIndex: 0, name: "Alice", chipCount: 9, cardsRemaining: 5, presence: "Away" },
+  { seatIndex: 1, name: "Bob", chipCount: 9, cardsRemaining: 2, presence: "Active" },
 ];
 
 const myHand: CardDto[] = [
@@ -37,7 +37,6 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     lastPlayedCard: { suit: "Spades", rank: "Ace" },
     nextCard: null,
     winnerIndex: null,
-    lastRoundWinner: null,
     pools: [{ type: "Kitty", chipCount: 7 }],
     seats,
   };
@@ -54,6 +53,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     setReady: vi.fn(),
     startGame: vi.fn(),
     playCard: vi.fn(),
+    leaveRoom: vi.fn(),
     ...overrides,
   };
 }
@@ -113,5 +113,19 @@ describe("Table (desktop)", () => {
     setViewport(false);
     render(<Table game={makeGame()} />);
     expect(screen.getByText("away")).toBeInTheDocument();
+  });
+
+  it("marks a player who left as 'left'", () => {
+    setViewport(false);
+    const game = makeGame();
+    game.gameState = {
+      ...game.gameState!,
+      seats: [
+        { seatIndex: 0, name: "Alice", chipCount: 9, cardsRemaining: 0, presence: "Abandoned" },
+        { seatIndex: 1, name: "Bob", chipCount: 9, cardsRemaining: 2, presence: "Active" },
+      ],
+    };
+    render(<Table game={game} />);
+    expect(screen.getByText("left")).toBeInTheDocument();
   });
 });
