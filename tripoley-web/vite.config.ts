@@ -17,6 +17,7 @@ export default defineConfig({
         "src/components/**",
         "src/useIsMobile.ts",
         "src/useGame.ts",
+        "src/useHeartsReveal.ts",
         "src/api/gameConnection.ts",
       ],
       thresholds: {
