@@ -12,9 +12,6 @@ interface SeatWinnings {
 
 const sameCard = (a: CardDto, b: CardDto) => a.suit === b.suit && a.rank === b.rank;
 
-// Collapse the per-pool awards into one entry per winning seat: the union of the revealed pay
-// cards and the total chips that seat took. The King-Queen combo pays three pools to one seat, so
-// this keeps K and Q from showing up three times while still crediting all the chips.
 function winningsBySeat(awards: HeartsAwardView[], seats: PlayerSeatView[]): SeatWinnings[] {
   const bySeat = new Map<number, SeatWinnings>();
   for (const award of awards) {
@@ -61,8 +58,6 @@ export function HeartsReveal({ awards, seats, mySeatIndex, variant, onSkip }: He
     );
   }
 
-  // On the mat, each winning seat is anchored to the same on-screen position the Seat uses, and a
-  // chip flies from the centre (the pool wheel) out to that seat to show where the chips went.
   const ordered = orderFromSelf(seats, mySeatIndex);
   const positionOf = (seatIndex: number) => {
     const displayIndex = ordered.findIndex((s) => s.seatIndex === seatIndex);

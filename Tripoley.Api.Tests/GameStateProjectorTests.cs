@@ -114,7 +114,6 @@ public class GameStateProjectorTests
         Assert.Null(view.CurrentLeaderIndex);
         Assert.Null(view.LastPlayedCard);
         Assert.Null(view.WinnerIndex);
-        // The deal never happened, so no Hearts settlement and the deal counter never advanced.
         Assert.Null(view.HeartsAwards);
         Assert.Equal(0, view.DealNumber);
     }
@@ -127,8 +126,6 @@ public class GameStateProjectorTests
         GameStateView view = GameStateProjector.ToGameStateView(game);
 
         Assert.Equal(1, view.DealNumber);
-        // Settled (possibly with no winners), so the list is present rather than null, and each award
-        // maps straight across including the revealed pay cards the reveal UI needs.
         Assert.NotNull(view.HeartsAwards);
         Assert.Equal(game.CurrentHeartsAwards!.Count, view.HeartsAwards!.Count);
         for (int index = 0; index < view.HeartsAwards.Count; index++)

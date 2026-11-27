@@ -75,8 +75,6 @@ public class GameMichiganTests
             game,
             [new Card(Suit.Hearts, Rank.Two)],
             [
-                // 12 cards (so Ann owes more than she can pay), with no single-suit 8-9-10 run
-                // and no pay cards, so the Hearts phase is a no-op here.
                 new Card(Suit.Clubs, Rank.Two), new Card(Suit.Clubs, Rank.Three),
                 new Card(Suit.Clubs, Rank.Four), new Card(Suit.Clubs, Rank.Five),
                 new Card(Suit.Clubs, Rank.Six), new Card(Suit.Clubs, Rank.Seven),
@@ -102,8 +100,6 @@ public class GameMichiganTests
             game,
             [new Card(Suit.Hearts, Rank.Two)],
             [
-                // 12 cards (so Ann owes more than she can pay), with no single-suit 8-9-10 run
-                // and no pay cards, so the Hearts phase is a no-op here.
                 new Card(Suit.Clubs, Rank.Two), new Card(Suit.Clubs, Rank.Three),
                 new Card(Suit.Clubs, Rank.Four), new Card(Suit.Clubs, Rank.Five),
                 new Card(Suit.Clubs, Rank.Six), new Card(Suit.Clubs, Rank.Seven),
@@ -188,7 +184,6 @@ public class GameMichiganTests
         return game;
     }
 
-    // Hearts now settles between the deal and the Michigan round, so Michigan can only start after it.
     private static void EnterMichigan(Game game, int? firstLeaderIndex = null)
     {
         game.StartHeartsPhase();

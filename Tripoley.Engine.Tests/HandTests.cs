@@ -142,7 +142,6 @@ public class HandTests
     [Fact]
     public void EightNineTenSuit_WhenTwoSuitsBothQualify_ReturnsTheFirstInSuitOrder()
     {
-        // Suit order is Clubs, Diamonds, Hearts, Spades; a player with two runs still takes one share.
         Hand hand = new Hand();
         hand.AddCard(new Card(Suit.Spades, Rank.Eight));
         hand.AddCard(new Card(Suit.Spades, Rank.Nine));

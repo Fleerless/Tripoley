@@ -1,13 +1,5 @@
 namespace Tripoley.Engine.Tests;
 
-// Specs for the Hearts (pay-card) settlement, written before the engine is implemented
-// (mirrors the GameAbandonTests "spec-first" approach). The engine members these pin are:
-//   - static HeartsEvaluator.Settle(Deal, ChipPools) -> IReadOnlyList<HeartsAward>
-//   - record HeartsAward(ChipPoolType Pool, int SeatIndex, int Chips, IReadOnlyList<Card> Cards)
-// Settle applies the chip movements to the pools/players and returns one award per pool paid
-// out. The 8-9-10 pool can produce several awards (one per qualifying seat), so awards is a
-// flat list. The revealed Cards on each award are the pay cards that justify it, so the UI can
-// show why chips moved without ever receiving a full hand.
 public class HeartsEvaluatorTests
 {
     [Fact]
@@ -37,7 +29,6 @@ public class HeartsEvaluatorTests
 
         IReadOnlyList<HeartsAward> awards = HeartsEvaluator.Settle(deal, pools);
 
-        // King (2) + Queen (2) + King-Queen (2) all land on seat 0.
         Assert.Equal(6, players[0].ChipCount);
         Assert.Equal(0, pools.Get(ChipPoolType.KingOfHearts).ChipCount);
         Assert.Equal(0, pools.Get(ChipPoolType.QueenOfHearts).ChipCount);
@@ -63,7 +54,6 @@ public class HeartsEvaluatorTests
 
         Assert.Equal(2, players[0].ChipCount);
         Assert.Equal(2, players[1].ChipCount);
-        // No single seat holds both, so the combo pool carries over.
         Assert.Equal(2, pools.Get(ChipPoolType.KingQueenOfHearts).ChipCount);
         Assert.DoesNotContain(awards, a => a.Pool == ChipPoolType.KingQueenOfHearts);
     }
@@ -98,7 +88,6 @@ public class HeartsEvaluatorTests
         (Deal deal, Player[] players) = DealWithEmptyHands(seatCount: 2);
         AddRun(deal.Seats[0].Hand, Suit.Clubs);
         AddRun(deal.Seats[1].Hand, Suit.Spades);
-        // 3 chips, 2 qualifiers: each takes 1, the odd chip stays on the layout.
         ChipPools pools = PoolsWithChipsOnEverySpace(chipsEach: 3);
 
         IReadOnlyList<HeartsAward> awards = HeartsEvaluator.Settle(deal, pools);
@@ -132,7 +121,6 @@ public class HeartsEvaluatorTests
     public void Settle_WhenThePayCardIsInTheWidow_LeavesThatPoolUntouched()
     {
         (Deal deal, Player[] players) = DealWithEmptyHands(seatCount: 2);
-        // The King of hearts was dealt to the widow, so no seat holds it.
         deal.Widow.AddCard(new Card(Suit.Hearts, Rank.King));
         ChipPools pools = PoolsWithChipsOnEverySpace(chipsEach: 2);
 
@@ -148,7 +136,7 @@ public class HeartsEvaluatorTests
     {
         (Deal deal, Player[] players) = DealWithEmptyHands(seatCount: 2);
         deal.Seats[0].Hand.AddCard(new Card(Suit.Hearts, Rank.Ace));
-        ChipPools pools = new ChipPools(); // never anted: every pool holds 0
+        ChipPools pools = new ChipPools();
 
         IReadOnlyList<HeartsAward> awards = HeartsEvaluator.Settle(deal, pools);
 
@@ -158,7 +146,6 @@ public class HeartsEvaluatorTests
 
     private static (Deal deal, Player[] players) DealWithEmptyHands(int seatCount)
     {
-        // Deal players start with 0 chips so a post-settlement count IS exactly what they won.
         Player[] players = Enumerable.Range(0, seatCount)
             .Select(i => new Player(chipCount: 0, name: $"P{i}"))
             .ToArray();
@@ -170,7 +157,6 @@ public class HeartsEvaluatorTests
         return (deal, players);
     }
 
-    // AddAnte puts one chip on every space, so N throwaway antes load every pool to N.
     private static ChipPools PoolsWithChipsOnEverySpace(int chipsEach)
     {
         ChipPools pools = new ChipPools();

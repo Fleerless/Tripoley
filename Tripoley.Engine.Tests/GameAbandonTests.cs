@@ -226,7 +226,6 @@ public class GameAbandonTests
         return game;
     }
 
-    // Hearts now settles between the deal and the Michigan round, so Michigan can only start after it.
     private static void EnterMichigan(Game game, int firstLeaderIndex)
     {
         game.StartHeartsPhase();
