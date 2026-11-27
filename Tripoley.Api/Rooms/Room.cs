@@ -81,8 +81,12 @@ public sealed class Room(string code, Random? random = null, TimeProvider? timeP
 
             Game = new Game(_members.Select(member => member.Player), _random);
             Game.StartNewDeal();
-            // Will need to be changed when Hearts/Poker rounds are implemented
-            Game.StartMichiganRound();
+            if (Game.GamePhase == GamePhase.DealComplete)
+            {
+                // Poker will slot in here between Hearts and Michigan when that phase is implemented.
+                Game.StartHeartsPhase();
+                Game.StartMichiganRound();
+            }
             State = RoomState.InProgress;
             return true;
         }
@@ -148,7 +152,8 @@ public sealed class Room(string code, Random? random = null, TimeProvider? timeP
             return true;
         }
 
-        // We will need to change the starting round when new game phases are added
+        // Poker will slot in here between Hearts and Michigan when that phase is implemented.
+        Game.StartHeartsPhase();
         Game.StartMichiganRound();
         return true;
     }

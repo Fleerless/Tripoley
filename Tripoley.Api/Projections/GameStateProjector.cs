@@ -10,6 +10,12 @@ public static class GameStateProjector
     {
         var pools = Enum.GetValues<ChipPoolType>().Select(type => new PoolView(type, game.Pools.Get(type).ChipCount)).ToList();
         var round = game.GamePhase == GamePhase.GameComplete ? null : game.CurrentMichiganRound;
+        var heartsAwards = game.GamePhase == GamePhase.GameComplete || game.CurrentHeartsAwards is null
+            ? null
+            : game.CurrentHeartsAwards
+                .Select(award => new HeartsAwardView(
+                    award.Pool, award.SeatIndex, award.Chips, award.Cards.Select(ToCardDto).ToList()))
+                .ToList();
         IReadOnlyList<PlayerSeatView> seats = game.CurrentDeal is null
             ? []
             : game.CurrentDeal.Seats.Select((seat, index) => new PlayerSeatView(
@@ -25,7 +31,9 @@ public static class GameStateProjector
             NextCard(round),
             round?.WinnerIndex,
             pools,
-            seats);
+            seats,
+            game.DealNumber,
+            heartsAwards);
     }
 
     private static SeatPresence PresenceOf(Game game, Guid playerId, IReadOnlyDictionary<Guid, bool>? connectedByPlayerId)

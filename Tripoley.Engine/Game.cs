@@ -18,8 +18,10 @@ public class Game
     private readonly Random _random;
     private Guid _dealerId;
     public Deal? CurrentDeal { get; private set; }
+    public int DealNumber { get; private set; }
     public GamePhase GamePhase  { get; private set; } = GamePhase.WaitingForDeal;
     public ChipPools Pools { get; } = new();
+    public IReadOnlyList<HeartsAward>? CurrentHeartsAwards { get; private set; }
     public const int MinPlayerCount = 2;
     public const int MaxPlayerCount = 9;
     public const int StartingChips = 100;
@@ -69,7 +71,15 @@ public class Game
         deck.Shuffle();
 
         CurrentDeal = Deal.Create(deck, eligible);
+        DealNumber++;
         GamePhase = GamePhase.DealComplete;
+    }
+    public void StartHeartsPhase()
+    {
+        if (CurrentDeal == null || GamePhase != GamePhase.DealComplete) throw new InvalidOperationException("Cannot start the Hearts phase before the deal is complete.");
+
+        GamePhase = GamePhase.HeartsInProgress;
+        CurrentHeartsAwards = HeartsEvaluator.Settle(CurrentDeal, Pools);
     }
     public void StartMichiganRound()
     {
@@ -77,7 +87,8 @@ public class Game
     }
     public void StartMichiganRound(int firstLeaderIndex)
     {
-        if (CurrentDeal == null || GamePhase != GamePhase.DealComplete) throw new InvalidOperationException("Cannot start Michigan round before deal is complete.");
+        // When the Poker phase lands it settles between Hearts and Michigan; this guard moves to PokerInProgress then.
+        if (CurrentDeal == null || GamePhase != GamePhase.HeartsInProgress) throw new InvalidOperationException("Cannot start the Michigan round before the Hearts phase.");
 
         CurrentMichiganRound = new MichiganRound(CurrentDeal, firstLeaderIndex);
         GamePhase = GamePhase.MichiganRummyInProgress;

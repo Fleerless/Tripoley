@@ -1,9 +1,11 @@
-import { LayoutGroup } from "motion/react";
+import { AnimatePresence, LayoutGroup } from "motion/react";
 import type { Game } from "../useGame";
 import { orderFromSelf, partitionSeats, seatPosition } from "../lib/seats";
 import { useIsMobile } from "../useIsMobile";
+import { useHeartsReveal } from "../useHeartsReveal";
 import { CenterPile } from "./CenterPile";
 import { HandDock } from "./HandDock";
+import { HeartsReveal } from "./HeartsReveal";
 import { Pools } from "./Pools";
 import { Seat } from "./Seat";
 import { SeatChip } from "./SeatChip";
@@ -12,6 +14,7 @@ export function Table({ game }: { game: Game }) {
   const gs = game.gameState;
   const mySeatIndex = game.hand?.seatIndex ?? null;
   const isMobile = useIsMobile();
+  const reveal = useHeartsReveal(gs);
 
   if (isMobile) {
     const { opponents, self } = partitionSeats(gs?.seats ?? [], mySeatIndex);
@@ -31,6 +34,17 @@ export function Table({ game }: { game: Game }) {
           <div className="mobile-center">
             <Pools pools={gs?.pools ?? []} className="board-mobile" />
             <CenterPile card={gs?.lastPlayedCard ?? null} />
+            <AnimatePresence>
+              {reveal.awards && (
+                <HeartsReveal
+                  awards={reveal.awards}
+                  seats={gs?.seats ?? []}
+                  mySeatIndex={mySeatIndex}
+                  variant="mobile"
+                  onSkip={reveal.skip}
+                />
+              )}
+            </AnimatePresence>
           </div>
 
           {self && (
@@ -72,6 +86,18 @@ export function Table({ game }: { game: Game }) {
             />
           );
         })}
+
+        <AnimatePresence>
+          {reveal.awards && (
+            <HeartsReveal
+              awards={reveal.awards}
+              seats={gs?.seats ?? []}
+              mySeatIndex={mySeatIndex}
+              variant="mat"
+              onSkip={reveal.skip}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </LayoutGroup>
   );

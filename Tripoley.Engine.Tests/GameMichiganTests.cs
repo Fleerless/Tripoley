@@ -7,14 +7,14 @@ public class GameMichiganTests
     {
         Game game = CreateDealtGame(players: [new Player(chipCount: 100, name: "Jeff"), new Player(chipCount: 100, name: "Ann")]);
 
-        game.StartMichiganRound(firstLeaderIndex: 1);
+        EnterMichigan(game, firstLeaderIndex: 1);
 
         Assert.Equal(GamePhase.MichiganRummyInProgress, game.GamePhase);
         Assert.NotNull(game.CurrentMichiganRound);
         Assert.Equal(1, game.CurrentMichiganRound.CurrentLeaderIndex);
     }
     [Fact]
-    public void StartMichiganRound_WhenNotDealComplete_ThrowsInvalidOperationException()
+    public void StartMichiganRound_BeforeAnyDeal_ThrowsInvalidOperationException()
     {
         Game game = new Game([new Player(chipCount: 100, name: "Jeff"), new Player(chipCount: 100, name: "Ann")]);
 
@@ -36,7 +36,7 @@ public class GameMichiganTests
             game,
             [new Card(Suit.Hearts, Rank.Two)],
             [new Card(Suit.Clubs, Rank.Two), new Card(Suit.Clubs, Rank.Three), new Card(Suit.Diamonds, Rank.Four)]);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
 
         Assert.True(game.TryPlayCard(0, new Card(Suit.Hearts, Rank.Two)));
 
@@ -53,9 +53,9 @@ public class GameMichiganTests
         Game game = CreateDealtGame(players);
         ReplaceHands(
             game,
-            [new Card(Suit.Hearts, Rank.Two), new Card(Suit.Hearts, Rank.King)],
+            [new Card(Suit.Hearts, Rank.Two), new Card(Suit.Hearts, Rank.Six)],
             [new Card(Suit.Hearts, Rank.Five)]);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
 
         Assert.True(game.TryPlayCard(0, new Card(Suit.Hearts, Rank.Two)));
 
@@ -75,14 +75,16 @@ public class GameMichiganTests
             game,
             [new Card(Suit.Hearts, Rank.Two)],
             [
+                // 12 cards (so Ann owes more than she can pay), with no single-suit 8-9-10 run
+                // and no pay cards, so the Hearts phase is a no-op here.
                 new Card(Suit.Clubs, Rank.Two), new Card(Suit.Clubs, Rank.Three),
                 new Card(Suit.Clubs, Rank.Four), new Card(Suit.Clubs, Rank.Five),
                 new Card(Suit.Clubs, Rank.Six), new Card(Suit.Clubs, Rank.Seven),
-                new Card(Suit.Clubs, Rank.Eight), new Card(Suit.Clubs, Rank.Nine),
-                new Card(Suit.Clubs, Rank.Ten), new Card(Suit.Clubs, Rank.Jack),
-                new Card(Suit.Clubs, Rank.Queen), new Card(Suit.Clubs, Rank.King),
+                new Card(Suit.Diamonds, Rank.Two), new Card(Suit.Diamonds, Rank.Three),
+                new Card(Suit.Diamonds, Rank.Four), new Card(Suit.Diamonds, Rank.Five),
+                new Card(Suit.Diamonds, Rank.Six), new Card(Suit.Diamonds, Rank.Seven),
             ]);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
 
         Assert.True(game.TryPlayCard(0, new Card(Suit.Hearts, Rank.Two)));
 
@@ -100,14 +102,16 @@ public class GameMichiganTests
             game,
             [new Card(Suit.Hearts, Rank.Two)],
             [
+                // 12 cards (so Ann owes more than she can pay), with no single-suit 8-9-10 run
+                // and no pay cards, so the Hearts phase is a no-op here.
                 new Card(Suit.Clubs, Rank.Two), new Card(Suit.Clubs, Rank.Three),
                 new Card(Suit.Clubs, Rank.Four), new Card(Suit.Clubs, Rank.Five),
                 new Card(Suit.Clubs, Rank.Six), new Card(Suit.Clubs, Rank.Seven),
-                new Card(Suit.Clubs, Rank.Eight), new Card(Suit.Clubs, Rank.Nine),
-                new Card(Suit.Clubs, Rank.Ten), new Card(Suit.Clubs, Rank.Jack),
-                new Card(Suit.Clubs, Rank.Queen), new Card(Suit.Clubs, Rank.King),
+                new Card(Suit.Diamonds, Rank.Two), new Card(Suit.Diamonds, Rank.Three),
+                new Card(Suit.Diamonds, Rank.Four), new Card(Suit.Diamonds, Rank.Five),
+                new Card(Suit.Diamonds, Rank.Six), new Card(Suit.Diamonds, Rank.Seven),
             ]);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
         game.TryPlayCard(0, new Card(Suit.Hearts, Rank.Two));
 
         game.StartNewDeal();
@@ -128,7 +132,7 @@ public class GameMichiganTests
             new Player(chipCount: 100, name: "Cy"),
         ]);
 
-        game.StartMichiganRound();
+        EnterMichigan(game);
 
         Assert.Equal(GamePhase.MichiganRummyInProgress, game.GamePhase);
         Assert.Equal(1, game.CurrentMichiganRound!.CurrentLeaderIndex);
@@ -147,7 +151,7 @@ public class GameMichiganTests
         ];
         Game game = CreateDealtGame(players);
 
-        game.StartMichiganRound();
+        EnterMichigan(game);
 
         // The leader index must point into the dealt seats (count 2), not the full table — this is the
         // case that broke when the index was taken from the table's seat order instead of the deal's.
@@ -165,14 +169,14 @@ public class GameMichiganTests
         // Deal 1: dealer is seat 0 (Jeff), so Ann (seat 1) leads. Give Ann a single card so she goes out
         // immediately, ending the deal cleanly and returning the game to WaitingForDeal.
         ReplaceHands(game, [new Card(Suit.Clubs, Rank.King)], [new Card(Suit.Hearts, Rank.Two)]);
-        game.StartMichiganRound();
+        EnterMichigan(game);
         Assert.Equal(1, game.CurrentMichiganRound!.CurrentLeaderIndex);
         Assert.True(game.TryPlayCard(1, new Card(Suit.Hearts, Rank.Two)));
         Assert.Equal(GamePhase.WaitingForDeal, game.GamePhase);
 
         // Deal 2: the button passes clockwise to Ann, so now Jeff (seat 0) leads.
         game.StartNewDeal();
-        game.StartMichiganRound();
+        EnterMichigan(game);
 
         Assert.Equal(0, game.CurrentMichiganRound!.CurrentLeaderIndex);
     }
@@ -182,6 +186,20 @@ public class GameMichiganTests
         Game game = new Game(players);
         game.StartNewDeal();
         return game;
+    }
+
+    // Hearts now settles between the deal and the Michigan round, so Michigan can only start after it.
+    private static void EnterMichigan(Game game, int? firstLeaderIndex = null)
+    {
+        game.StartHeartsPhase();
+        if (firstLeaderIndex is int leader)
+        {
+            game.StartMichiganRound(leader);
+        }
+        else
+        {
+            game.StartMichiganRound();
+        }
     }
 
     private static void ReplaceHands(Game game, params Card[][] handsBySeat)

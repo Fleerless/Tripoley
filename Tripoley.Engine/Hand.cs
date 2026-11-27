@@ -35,4 +35,17 @@ public sealed class Hand
 
         return card == lowestCard;
     }
+    public Suit? EightNineTenSuit()
+    {
+        foreach (Suit suit in Enum.GetValues<Suit>())
+        {
+            if (Contains(new Card(suit, Rank.Eight)) &&
+                Contains(new Card(suit, Rank.Nine)) &&
+                Contains(new Card(suit, Rank.Ten)))
+            {
+                return suit;
+            }
+        }
+        return null;
+    }
 }

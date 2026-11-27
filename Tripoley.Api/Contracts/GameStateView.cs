@@ -11,5 +11,7 @@ public sealed record GameStateView(
     CardDto? NextCard,
     int? WinnerIndex,
     IReadOnlyList<PoolView> Pools,
-    IReadOnlyList<PlayerSeatView> Seats
+    IReadOnlyList<PlayerSeatView> Seats,
+    int DealNumber,
+    IReadOnlyList<HeartsAwardView>? HeartsAwards
 );

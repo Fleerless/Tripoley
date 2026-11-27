@@ -114,6 +114,34 @@ public class GameStateProjectorTests
         Assert.Null(view.CurrentLeaderIndex);
         Assert.Null(view.LastPlayedCard);
         Assert.Null(view.WinnerIndex);
+        // The deal never happened, so no Hearts settlement and the deal counter never advanced.
+        Assert.Null(view.HeartsAwards);
+        Assert.Equal(0, view.DealNumber);
+    }
+
+    [Fact]
+    public void ToGameStateView_AfterTheHeartsPhase_CarriesTheDealNumberAndMapsTheSettledAwards()
+    {
+        Game game = StartedGame(out _);
+
+        GameStateView view = GameStateProjector.ToGameStateView(game);
+
+        Assert.Equal(1, view.DealNumber);
+        // Settled (possibly with no winners), so the list is present rather than null, and each award
+        // maps straight across including the revealed pay cards the reveal UI needs.
+        Assert.NotNull(view.HeartsAwards);
+        Assert.Equal(game.CurrentHeartsAwards!.Count, view.HeartsAwards!.Count);
+        for (int index = 0; index < view.HeartsAwards.Count; index++)
+        {
+            HeartsAward engineAward = game.CurrentHeartsAwards[index];
+            HeartsAwardView viewAward = view.HeartsAwards[index];
+            Assert.Equal(engineAward.Pool, viewAward.Pool);
+            Assert.Equal(engineAward.SeatIndex, viewAward.SeatIndex);
+            Assert.Equal(engineAward.Chips, viewAward.Chips);
+            Assert.Equal(
+                engineAward.Cards.Select(card => new CardDto(card.Suit, card.Rank)),
+                viewAward.Cards);
+        }
     }
 
     private static Game StartedGame(out Player[] players)
@@ -121,6 +149,7 @@ public class GameStateProjectorTests
         players = [new Player(100, "Jeff"), new Player(100, "Ann")];
         Game game = new(players);
         game.StartNewDeal();
+        game.StartHeartsPhase();
         game.StartMichiganRound();
         return game;
     }
