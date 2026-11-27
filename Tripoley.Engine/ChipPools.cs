@@ -53,6 +53,23 @@ public class ChipPools
             player.AddChips(chips);
         }
     }
+    public int SplitChipsEvenly(ChipPoolType type, IReadOnlyList<Player> recipients)
+    {
+        ArgumentNullException.ThrowIfNull(recipients);
+
+        ChipPool pool = Get(type);
+        if (recipients.Count == 0) return 0;
+
+        int baseEach = pool.ChipCount / recipients.Count;
+        if (baseEach == 0) return 0;
+
+        foreach (Player recipient in recipients)
+        {
+            pool.RemoveChips(baseEach);
+            recipient.AddChips(baseEach);
+        }
+        return baseEach;
+    }
     public void ClaimAll(Player player)
     {
         ArgumentNullException.ThrowIfNull(player);

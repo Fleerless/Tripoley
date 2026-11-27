@@ -119,4 +119,37 @@ public class HandTests
 
         Assert.False(hand.IsLowestCardOfSuit(new Card(Suit.Hearts, Rank.Seven)));
     }
+    [Fact]
+    public void EightNineTenSuit_WhenHandHoldsASuitedRun_ReturnsThatSuit()
+    {
+        Hand hand = new Hand();
+        hand.AddCard(new Card(Suit.Clubs, Rank.Eight));
+        hand.AddCard(new Card(Suit.Clubs, Rank.Nine));
+        hand.AddCard(new Card(Suit.Clubs, Rank.Ten));
+
+        Assert.Equal(Suit.Clubs, hand.EightNineTenSuit());
+    }
+    [Fact]
+    public void EightNineTenSuit_WhenTheRunSpansDifferentSuits_ReturnsNull()
+    {
+        Hand hand = new Hand();
+        hand.AddCard(new Card(Suit.Clubs, Rank.Eight));
+        hand.AddCard(new Card(Suit.Clubs, Rank.Nine));
+        hand.AddCard(new Card(Suit.Diamonds, Rank.Ten));
+
+        Assert.Null(hand.EightNineTenSuit());
+    }
+    [Fact]
+    public void EightNineTenSuit_WhenTwoSuitsBothQualify_ReturnsTheFirstInSuitOrder()
+    {
+        Hand hand = new Hand();
+        hand.AddCard(new Card(Suit.Spades, Rank.Eight));
+        hand.AddCard(new Card(Suit.Spades, Rank.Nine));
+        hand.AddCard(new Card(Suit.Spades, Rank.Ten));
+        hand.AddCard(new Card(Suit.Clubs, Rank.Eight));
+        hand.AddCard(new Card(Suit.Clubs, Rank.Nine));
+        hand.AddCard(new Card(Suit.Clubs, Rank.Ten));
+
+        Assert.Equal(Suit.Clubs, hand.EightNineTenSuit());
+    }
 }

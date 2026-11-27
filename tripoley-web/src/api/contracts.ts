@@ -30,6 +30,15 @@ export interface GameStateView {
   winnerIndex: number | null;
   pools: PoolView[];
   seats: PlayerSeatView[];
+  dealNumber: number;
+  heartsAwards: HeartsAwardView[] | null;
+}
+
+export interface HeartsAwardView {
+  pool: ChipPoolType;
+  seatIndex: number;
+  chips: number;
+  cards: CardDto[];
 }
 
 export interface OpenRoomView {

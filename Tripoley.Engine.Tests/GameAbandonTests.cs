@@ -12,7 +12,7 @@ public class GameAbandonTests
     {
         Player[] players = [new Player(chipCount: 100, name: "Jeff"), new Player(chipCount: 100, name: "Ann")];
         Game game = CreateDealtGame(players);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
 
         // Each player anted 9 (one chip on each of the nine pools), so the layout holds 18 chips.
         game.Abandon(players[1].Id);
@@ -31,7 +31,7 @@ public class GameAbandonTests
     {
         Player[] players = [new Player(chipCount: 100, name: "Jeff"), new Player(chipCount: 100, name: "Ann")];
         Game game = CreateDealtGame(players);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
         game.Abandon(players[1].Id);
 
         // A second abandon on either seat, after the game is over, must change nothing.
@@ -56,7 +56,7 @@ public class GameAbandonTests
             [new Card(Suit.Hearts, Rank.Two), new Card(Suit.Hearts, Rank.Three), new Card(Suit.Clubs, Rank.Two)],
             [new Card(Suit.Clubs, Rank.Five)],
             [new Card(Suit.Spades, Rank.Two)]);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
         Assert.True(game.TryPlayCard(0, new Card(Suit.Hearts, Rank.Two)));
         Assert.Equal(RoundPhase.RunInProgress, game.CurrentMichiganRound!.Phase);
 
@@ -85,7 +85,7 @@ public class GameAbandonTests
             [new Card(Suit.Hearts, Rank.Two)],
             [new Card(Suit.Spades, Rank.Two), new Card(Suit.Spades, Rank.Three)],
             [new Card(Suit.Clubs, Rank.Two)]);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
 
         game.Abandon(players[0].Id);
 
@@ -106,9 +106,9 @@ public class GameAbandonTests
         ReplaceHands(
             game,
             [new Card(Suit.Hearts, Rank.Two), new Card(Suit.Hearts, Rank.Three)],
-            [new Card(Suit.Hearts, Rank.King)],
+            [new Card(Suit.Hearts, Rank.Six)],
             [new Card(Suit.Hearts, Rank.Five)]);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
         game.TryPlayCard(0, new Card(Suit.Hearts, Rank.Two));
 
         game.Abandon(players[0].Id);
@@ -141,7 +141,7 @@ public class GameAbandonTests
             [new Card(Suit.Hearts, Rank.Two), new Card(Suit.Clubs, Rank.Two)],
             [new Card(Suit.Clubs, Rank.Five)],
             [new Card(Suit.Spades, Rank.Two)]);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
         // Hearts Three is held by no one, so the opening lead stops at once and seat 0 (holding clubs) leads next.
         game.TryPlayCard(0, new Card(Suit.Hearts, Rank.Two));
         Assert.Equal(RoundPhase.RunStopped, game.CurrentMichiganRound!.Phase);
@@ -164,7 +164,7 @@ public class GameAbandonTests
             [new Card(Suit.Hearts, Rank.Two), new Card(Suit.Clubs, Rank.King)],
             [new Card(Suit.Hearts, Rank.Three)],
             [new Card(Suit.Spades, Rank.Two)]);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
         game.TryPlayCard(0, new Card(Suit.Hearts, Rank.Two));
         Assert.Equal(RoundPhase.RunInProgress, game.CurrentMichiganRound!.Phase);
 
@@ -192,7 +192,7 @@ public class GameAbandonTests
             [new Card(Suit.Hearts, Rank.Two)],
             [new Card(Suit.Hearts, Rank.Three), new Card(Suit.Clubs, Rank.Four)],
             [new Card(Suit.Spades, Rank.Five)]);
-        game.StartMichiganRound(firstLeaderIndex: 0);
+        EnterMichigan(game, firstLeaderIndex: 0);
 
         // Seat 0 leads its only card, empties its hand, and wins. The round settles and the game parks in
         // WaitingForDeal: seat 0 takes the Kitty (3) plus one chip per held card from the two losers (2 + 1),
@@ -224,6 +224,12 @@ public class GameAbandonTests
         Game game = new Game(players);
         game.StartNewDeal();
         return game;
+    }
+
+    private static void EnterMichigan(Game game, int firstLeaderIndex)
+    {
+        game.StartHeartsPhase();
+        game.StartMichiganRound(firstLeaderIndex);
     }
 
     private static Player[] CreatePlayers(int count) =>
